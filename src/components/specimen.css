@@ -1,0 +1,228 @@
+/* A listing is presented as a herbarium sheet: a mounted plate on the left,
+   a typed determination label on the right. */
+
+.sheet {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.18s, border-color 0.18s;
+  box-shadow: 0 1px 0 rgba(36, 28, 23, 0.05);
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.sheet:hover {
+  transform: translateY(-4px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow);
+}
+
+.sheet:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 3px;
+}
+
+.sheet-plate {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      var(--paper-2) 0 10px,
+      var(--paper-3) 10px 20px
+    );
+  overflow: hidden;
+}
+
+/* mounting corners, like a specimen taped to a card */
+.sheet-plate::before,
+.sheet-plate::after {
+  content: "";
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid rgba(36, 28, 23, 0.28);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.sheet-plate::before {
+  top: 10px;
+  left: 10px;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.sheet-plate::after {
+  bottom: 10px;
+  right: 10px;
+  border-left: 0;
+  border-top: 0;
+}
+
+.photo,
+.photo-skeleton,
+.photo-empty {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.photo {
+  object-fit: cover;
+}
+
+.photo-skeleton {
+  background: linear-gradient(100deg, var(--paper-2) 30%, var(--paper) 50%, var(--paper-2) 70%);
+  background-size: 240% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -240% 0;
+  }
+}
+
+.photo-empty {
+  display: grid;
+  place-items: center;
+  font-family: var(--pixel);
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--paper-2);
+}
+
+.sheet-accession {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 3;
+  font-family: var(--pixel);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  background: var(--paper);
+  border-radius: 999px;
+  padding: 3px 10px;
+  border: 1px solid var(--line-strong);
+}
+
+/* The verdict, rubber-stamped across the plate at an angle. */
+.sheet-stamp {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 3;
+  display: grid;
+  gap: 1px;
+  padding: 8px 14px;
+  border-radius: var(--r-sm);
+  border: 2px solid currentColor;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(3px);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transform: rotate(-3.5deg);
+}
+
+.sheet-stamp em {
+  font-family: var(--pixel);
+  font-style: normal;
+  font-size: 9.5px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.sheet-stamp.green {
+  color: var(--chloro);
+}
+.sheet-stamp.amber {
+  color: var(--amber);
+}
+.sheet-stamp.red {
+  color: var(--rot);
+}
+.sheet-stamp.neutral {
+  color: var(--ink-2);
+}
+
+.sheet-label {
+  padding: 16px 18px 18px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.sheet-species {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  margin: 0;
+}
+
+.sheet-claim {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sheet-rows {
+  margin: 2px 0 0;
+  display: grid;
+  gap: 3px;
+}
+
+.sheet-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.sheet-row dt {
+  flex-shrink: 0;
+}
+
+.sheet-row dd {
+  margin: 0;
+  flex: 1;
+  text-align: right;
+  border-bottom: 1px dotted var(--line);
+  position: relative;
+  top: -3px;
+}
+
+.sheet-row dd::after {
+  content: "";
+}
+
+/* --------------------------------------------------------- the grid --- */
+
+.archive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 20px;
+}
+
+.archive-empty {
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+  padding: 56px 28px;
+  text-align: center;
+  color: var(--ink-2);
+}

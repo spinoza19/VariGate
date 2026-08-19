@@ -1,0 +1,11 @@
+{
+  "network": "studionet",
+  "chainId": 61999,
+  "address": "0x346F7c6734205fc45e2abF86e63Ce14C8F0e3781",
+  "deployer": "0xF0071AFE9ca99eB21cDDAb933837e6E280BDCB12",
+  "treasury": "0xF0071AFE9ca99eB21cDDAb933837e6E280BDCB12",
+  "feeBps": 200,
+  "strictVision": false,
+  "deployTx": "0x345c288750aabfaab6c3bee85613c30f3121f472a88f474ead58a30a46067c46",
+  "deployedAt": "2026-08-19T21:03:24.686Z"
+}

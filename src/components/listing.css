@@ -1,0 +1,124 @@
+.listing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .listing {
+    grid-template-columns: 1fr;
+  }
+}
+
+.listing-title {
+  font-size: clamp(38px, 6vw, 58px);
+  margin: 6px 0 10px;
+}
+
+.listing-lede {
+  margin: 0 0 20px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 52ch;
+}
+
+.listing-presets {
+  padding: 14px 16px;
+  background: var(--paper-2);
+  border-radius: var(--r-md);
+}
+
+.listing-done {
+  border: 1.5px solid var(--chloro);
+  background: var(--chloro-soft);
+  color: var(--chloro);
+  border-radius: var(--r-sm);
+  padding: 10px 13px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 10px;
+}
+
+/* ------------------------------------------------------------- plate -- */
+
+.listing-plate {
+  position: sticky;
+  top: 78px;
+  display: grid;
+  gap: 8px;
+}
+
+@media (max-width: 860px) {
+  .listing-plate {
+    position: static;
+  }
+}
+
+.listing-drop {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+  background:
+    repeating-linear-gradient(45deg, var(--paper-2) 0 10px, var(--paper-3) 10px 20px);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.listing-drop:hover {
+  border-color: var(--chloro);
+}
+
+.listing-drop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.listing-drop-empty {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  padding: 30px;
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ink-2);
+}
+
+.listing-drop-empty em {
+  font-family: var(--pixel);
+  font-style: normal;
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+
+.listing-plate-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.listing-note {
+  margin-top: 6px;
+  padding: 14px 16px;
+  background: var(--indigo-soft);
+  border-radius: var(--r-md);
+}
+
+.listing-note p {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #33269c;
+}

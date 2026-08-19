@@ -1,0 +1,31 @@
+{
+  "name": "varigate",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Trustless condition escrow for rare plant sales, adjudicated on GenLayer.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "python scripts/test_scoring.py",
+    "specimens": "python scripts/make_specimens.py",
+    "fund": "node scripts/fund.mjs",
+    "deploy": "node scripts/deploy.mjs",
+    "seed": "node scripts/seed.mjs",
+    "e2e": "node scripts/e2e.mjs"
+  },
+  "dependencies": {
+    "genlayer-js": "1.1.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "dotenv": "^16.4.7",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  }
+}

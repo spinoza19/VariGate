@@ -1,0 +1,80 @@
+.ba {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--paper-2);
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+  border: 1px solid var(--line);
+}
+
+.ba-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.ba-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  will-change: width;
+}
+
+.ba-clip .ba-img {
+  width: 100cqw;
+}
+
+.ba {
+  container-type: inline-size;
+}
+
+.ba-seam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--paper);
+  box-shadow: 0 0 0 1px rgba(36, 28, 23, 0.35);
+  pointer-events: none;
+}
+
+.ba-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+}
+
+.ba-tag {
+  position: absolute;
+  bottom: 12px;
+  font-family: var(--pixel);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  border-radius: 999px;
+  padding: 3px 10px;
+  pointer-events: none;
+}
+
+.ba-tag.left {
+  left: 12px;
+}
+.ba-tag.right {
+  right: 12px;
+}

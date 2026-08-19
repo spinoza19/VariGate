@@ -1,0 +1,123 @@
+.mech {
+  padding: 8px 0 20px;
+}
+
+.mech-head {
+  max-width: 720px;
+}
+
+.mech-title {
+  font-size: clamp(36px, 6.4vw, 68px);
+  margin: 8px 0 14px;
+}
+
+.mech-lede {
+  font-size: 16px;
+  line-height: 1.62;
+  color: var(--ink-2);
+  max-width: 60ch;
+  margin: 0;
+}
+
+.mech-svg {
+  width: 100%;
+  height: auto;
+  margin: 34px 0 8px;
+  min-width: 0;
+  color: var(--ink-3);
+}
+
+/* the diagram scrolls on narrow screens rather than shrinking to nothing */
+@media (max-width: 820px) {
+  .mech-svg {
+    min-width: 900px;
+  }
+  .mech-scroll {
+    overflow-x: auto;
+  }
+}
+
+.mech-node rect {
+  fill: var(--card);
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+
+.mech-node.accent rect {
+  fill: var(--indigo-soft);
+  stroke: var(--indigo);
+}
+
+.mech-node.leaf rect {
+  fill: var(--chloro-soft);
+  stroke: var(--chloro);
+}
+
+.mech-node text {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 500;
+  fill: var(--ink);
+  text-anchor: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.mech-node .mech-sub {
+  font-family: var(--pixel);
+  font-size: 10.5px;
+  font-weight: 400;
+  fill: var(--ink-3);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.mech-wire {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+
+.mech-wire-label,
+.mech-caption {
+  font-family: var(--pixel);
+  font-size: 10px;
+  fill: var(--ink-3);
+}
+
+.mech-caption {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.mech-seam {
+  stroke: var(--indigo);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 6;
+  opacity: 0.7;
+}
+
+.mech-seam-label {
+  font-family: var(--pixel);
+  font-size: 10px;
+  fill: var(--indigo);
+  letter-spacing: 0.1em;
+}
+
+.mech-notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+  padding-top: 26px;
+  border-top: 2px solid var(--ink);
+}
+
+.mech-note p {
+  margin: 5px 0 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
