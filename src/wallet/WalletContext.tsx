@@ -17,74 +17,70 @@ import {
   getBalance,
   type Client,
 } from "../lib/genlayer";
+import {
+  CHAIN_ID_HEX,
+  ensureChain,
+  readableWalletError,
+  walletByRdns,
+  watchWallets,
+  type DiscoveredWallet,
+  type WalletProvider as EipProvider,
+} from "./connectors";
 
 /**
- * Two ways in.
+ * Two ways in, and they are not equals.
  *
- *  burner   — a keypair generated in the browser and kept in localStorage,
- *             topped up from the Studio faucet. This is the path that actually
- *             works against the hosted simulator, because Studio accounts are
- *             not MetaMask accounts.
- *  injected — an EIP-1193 provider (MetaMask + the GenLayer snap). Wired up and
- *             offered, but it targets the real networks; on Studio it will tell
- *             you so rather than failing silently halfway through a signature.
+ *  wallet — a real EIP-6963 wallet. Studio answers enough of the standard EVM
+ *           surface that MetaMask, Rabby and friends can add it as an ordinary
+ *           network and sign for it; no GenLayer snap and no MetaMask Flask.
+ *  demo   — a keypair generated in this browser, funded from the Studio faucet.
+ *           For people who want to try the thing without installing anything.
  */
-export type ConnectorId = "burner" | "injected";
+export type ConnectionKind = "wallet" | "demo";
 
-export interface Connector {
-  id: ConnectorId;
-  name: string;
-  blurb: string;
-  available: () => boolean;
-}
-
-export const CONNECTORS: Connector[] = [
-  {
-    id: "burner",
-    name: "Studio burner",
-    blurb: "Keypair in this browser, funded by the Studio faucet. No extension needed.",
-    available: () => true,
-  },
-  {
-    id: "injected",
-    name: "MetaMask",
-    blurb: "Uses the GenLayer snap. Built for the public networks, not the simulator.",
-    available: () => typeof window !== "undefined" && !!(window as never as EthWindow).ethereum,
-  },
-];
-
-type EthWindow = { ethereum?: { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> } };
-
-const KEY_STORE = "varigate.burner.key";
-const CONNECTOR_STORE = "varigate.connector";
+const LAST_WALLET = "varigate.wallet.rdns";
+const LAST_KIND = "varigate.wallet.kind";
+const DEMO_KEY = "varigate.demo.key";
 
 interface WalletState {
   address: string | null;
-  connectorId: ConnectorId | null;
+  kind: ConnectionKind | null;
+  /** Display name of the connected wallet, e.g. "MetaMask". */
+  walletName: string | null;
+  walletIcon: string | null;
   client: Client | null;
   balance: bigint;
-  connecting: boolean;
+  wallets: DiscoveredWallet[];
+  connecting: string | null;
   error: string | null;
-  connect: (id: ConnectorId) => Promise<void>;
+  wrongChain: boolean;
+  connectWallet: (rdns: string) => Promise<void>;
+  connectDemo: () => Promise<void>;
+  switchToStudio: () => Promise<void>;
   disconnect: () => void;
   topUp: () => Promise<void>;
   refresh: () => Promise<void>;
-  exportKey: () => string | null;
-  importKey: (key: string) => Promise<void>;
 }
 
 const Ctx = createContext<WalletState | null>(null);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
-  const [connectorId, setConnectorId] = useState<ConnectorId | null>(null);
+  const [kind, setKind] = useState<ConnectionKind | null>(null);
+  const [walletName, setWalletName] = useState<string | null>(null);
+  const [walletIcon, setWalletIcon] = useState<string | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [balance, setBalance] = useState<bigint>(0n);
-  const [connecting, setConnecting] = useState(false);
+  const [wallets, setWallets] = useState<DiscoveredWallet[]>([]);
+  const [connecting, setConnecting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const mounted = useRef(true);
+  const [wrongChain, setWrongChain] = useState(false);
 
-  // See useEscrows: StrictMode's double-invoke would otherwise latch this off.
+  const mounted = useRef(true);
+  const activeProvider = useRef<EipProvider | null>(null);
+
+  // StrictMode mounts, unmounts and remounts; re-arm on every mount or the
+  // first teardown latches this off and no state ever lands.
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -92,13 +88,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => watchWallets((w) => mounted.current && setWallets(w)), []);
+
+  // ------------------------------------------------------------ balance ---
+
   const refresh = useCallback(async () => {
     if (!address) return;
     try {
       const b = await getBalance(address);
       if (mounted.current) setBalance(b);
     } catch {
-      /* the simulator occasionally blips; the next poll will pick it up */
+      /* the simulator blips; the next poll picks it up */
     }
   }, [address]);
 
@@ -109,74 +109,186 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(t);
   }, [address, refresh]);
 
-  const connectBurner = useCallback(async (existing?: string) => {
-    let key = existing ?? localStorage.getItem(KEY_STORE) ?? "";
-    if (!/^0x[0-9a-fA-F]{64}$/.test(key)) {
-      key = generatePrivateKey();
-      localStorage.setItem(KEY_STORE, key);
-    } else {
-      localStorage.setItem(KEY_STORE, key);
-    }
-    const acct = createAccount(key as `0x${string}`);
-    const c = clientForKey(key as `0x${string}`);
-
-    // A brand new burner has nothing to spend. Ask the faucet once, quietly.
-    const bal = await getBalance(acct.address);
-    if (bal < 10n ** 19n) {
+  /**
+   * Studio has no bridge, so a fresh address is stuck at zero until the faucet
+   * touches it. Worth one retry: the simulator sits behind a CDN that drops the
+   * occasional request, and arriving with no GEN makes the whole app look broken.
+   */
+  const fundIfEmpty = useCallback(async (addr: string) => {
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        await faucet(acct.address, 250);
+        if ((await getBalance(addr)) >= 10n ** 18n) return;
+        await faucet(addr, 250);
+        await new Promise((r) => setTimeout(r, 1500));
+        if ((await getBalance(addr)) > 0n) return;
       } catch {
-        /* faucet is best-effort; the UI exposes a manual top-up button */
+        /* fall through to the retry, then to the manual top-up button */
       }
+      if (attempt === 1) await new Promise((r) => setTimeout(r, 2500));
     }
-
-    setAddress(acct.address);
-    setClient(c);
-    setConnectorId("burner");
-    localStorage.setItem(CONNECTOR_STORE, "burner");
   }, []);
 
-  const connectInjected = useCallback(async () => {
-    const eth = (window as never as EthWindow).ethereum;
-    if (!eth) throw new Error("no injected wallet found");
-    const accounts = (await eth.request({ method: "eth_requestAccounts" })) as string[];
-    if (!accounts?.length) throw new Error("wallet returned no accounts");
-    const c = clientForProvider(eth);
-    setAddress(accounts[0]);
-    setClient(c);
-    setConnectorId("injected");
-    localStorage.setItem(CONNECTOR_STORE, "injected");
-  }, []);
+  // ------------------------------------------------------------- wallet ---
 
-  const connect = useCallback(
-    async (id: ConnectorId) => {
-      setConnecting(true);
-      setError(null);
-      try {
-        if (id === "burner") await connectBurner();
-        else await connectInjected();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (mounted.current) setConnecting(false);
-      }
+  const attach = useCallback(
+    (provider: EipProvider, addr: string, name: string, icon: string, rdns: string) => {
+      activeProvider.current = provider;
+      setAddress(addr);
+      setClient(clientForProvider(addr, provider));
+      setKind("wallet");
+      setWalletName(name);
+      setWalletIcon(icon || null);
+      setWrongChain(false);
+      localStorage.setItem(LAST_KIND, "wallet");
+      localStorage.setItem(LAST_WALLET, rdns);
     },
-    [connectBurner, connectInjected],
+    [],
   );
 
-  // Reconnect a burner silently on reload — it is just a local key, there is
-  // nothing to approve. An injected wallet always asks again.
-  useEffect(() => {
-    if (localStorage.getItem(CONNECTOR_STORE) === "burner") void connect("burner");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const connectWallet = useCallback(
+    async (rdns: string) => {
+      const found = walletByRdns(rdns);
+      if (!found) {
+        setError("That wallet is no longer available in this browser.");
+        return;
+      }
+      setConnecting(rdns);
+      setError(null);
+      try {
+        const accounts = (await found.provider.request({
+          method: "eth_requestAccounts",
+        })) as string[];
+        if (!accounts?.length) throw new Error("Your wallet returned no accounts.");
+
+        await ensureChain(found.provider);
+        await fundIfEmpty(accounts[0]);
+
+        attach(found.provider, accounts[0], found.name, found.icon, rdns);
+      } catch (e) {
+        setError(readableWalletError(e));
+      } finally {
+        if (mounted.current) setConnecting(null);
+      }
+    },
+    [attach, fundIfEmpty],
+  );
+
+  const switchToStudio = useCallback(async () => {
+    const provider = activeProvider.current;
+    if (!provider) return;
+    setError(null);
+    try {
+      await ensureChain(provider);
+      setWrongChain(false);
+    } catch (e) {
+      setError(readableWalletError(e));
+    }
   }, []);
 
+  // React to the wallet being driven from its own UI.
+  useEffect(() => {
+    const provider = activeProvider.current;
+    if (!provider?.on) return;
+
+    const onAccounts = (...args: never[]) => {
+      const accounts = args[0] as unknown as string[];
+      if (!accounts?.length) {
+        disconnect();
+        return;
+      }
+      setAddress(accounts[0]);
+      setClient(clientForProvider(accounts[0], provider));
+      void fundIfEmpty(accounts[0]);
+    };
+    const onChain = (...args: never[]) => {
+      const chainId = args[0] as unknown as string;
+      setWrongChain(chainId?.toLowerCase() !== CHAIN_ID_HEX);
+    };
+
+    provider.on("accountsChanged", onAccounts);
+    provider.on("chainChanged", onChain);
+    return () => {
+      provider.removeListener?.("accountsChanged", onAccounts);
+      provider.removeListener?.("chainChanged", onChain);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, kind]);
+
+  // --------------------------------------------------------------- demo ---
+
+  const connectDemo = useCallback(async () => {
+    setConnecting("demo");
+    setError(null);
+    try {
+      let key = localStorage.getItem(DEMO_KEY) ?? "";
+      if (!/^0x[0-9a-fA-F]{64}$/.test(key)) {
+        key = generatePrivateKey();
+        localStorage.setItem(DEMO_KEY, key);
+      }
+      const acct = createAccount(key as `0x${string}`);
+      await fundIfEmpty(acct.address);
+
+      activeProvider.current = null;
+      setAddress(acct.address);
+      setClient(clientForKey(key as `0x${string}`));
+      setKind("demo");
+      setWalletName(null);
+      setWalletIcon(null);
+      setWrongChain(false);
+      localStorage.setItem(LAST_KIND, "demo");
+      localStorage.removeItem(LAST_WALLET);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      if (mounted.current) setConnecting(null);
+    }
+  }, [fundIfEmpty]);
+
+  // ------------------------------------------------------- reconnection ---
+
+  // A demo account is just a local key, so it comes back silently. A real
+  // wallet only reconnects if it still reports the site as authorised —
+  // eth_accounts never prompts, so this stays quiet either way.
+  useEffect(() => {
+    const last = localStorage.getItem(LAST_KIND);
+    if (last === "demo") {
+      void connectDemo();
+      return;
+    }
+    if (last !== "wallet") return;
+
+    const rdns = localStorage.getItem(LAST_WALLET);
+    if (!rdns) return;
+    const found = wallets.find((w) => w.rdns === rdns);
+    if (!found || address) return;
+
+    void (async () => {
+      try {
+        const accounts = (await found.provider.request({ method: "eth_accounts" })) as string[];
+        if (!accounts?.length) return;
+        const chainId = (await found.provider.request({ method: "eth_chainId" })) as string;
+        attach(found.provider, accounts[0], found.name, found.icon, rdns);
+        setWrongChain(chainId?.toLowerCase() !== CHAIN_ID_HEX);
+      } catch {
+        /* silent — the user can always click connect */
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallets]);
+
+  // -------------------------------------------------------------- misc ---
+
   const disconnect = useCallback(() => {
+    activeProvider.current = null;
     setAddress(null);
     setClient(null);
-    setConnectorId(null);
+    setKind(null);
+    setWalletName(null);
+    setWalletIcon(null);
     setBalance(0n);
-    localStorage.removeItem(CONNECTOR_STORE);
+    setWrongChain(false);
+    localStorage.removeItem(LAST_KIND);
+    localStorage.removeItem(LAST_WALLET);
   }, []);
 
   const topUp = useCallback(async () => {
@@ -191,52 +303,42 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [address, refresh]);
 
-  const exportKey = useCallback(
-    () => (connectorId === "burner" ? localStorage.getItem(KEY_STORE) : null),
-    [connectorId],
-  );
-
-  const importKey = useCallback(
-    async (key: string) => {
-      setError(null);
-      const trimmed = key.trim();
-      if (!/^0x[0-9a-fA-F]{64}$/.test(trimmed)) {
-        setError("that does not look like a 32-byte hex private key");
-        return;
-      }
-      await connectBurner(trimmed);
-    },
-    [connectBurner],
-  );
-
   const value = useMemo<WalletState>(
     () => ({
       address,
-      connectorId,
+      kind,
+      walletName,
+      walletIcon,
       client,
       balance,
+      wallets,
       connecting,
       error,
-      connect,
+      wrongChain,
+      connectWallet,
+      connectDemo,
+      switchToStudio,
       disconnect,
       topUp,
       refresh,
-      exportKey,
-      importKey,
     }),
     [
       address,
-      connectorId,
+      kind,
+      walletName,
+      walletIcon,
       client,
       balance,
+      wallets,
       connecting,
       error,
-      connect,
+      wrongChain,
+      connectWallet,
+      connectDemo,
+      switchToStudio,
       disconnect,
       topUp,
       refresh,
-      exportKey,
-      importKey,
     ],
   );
 

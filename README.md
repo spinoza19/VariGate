@@ -65,7 +65,7 @@ listing and get paid.
 | RPC | `https://studio.genlayer.com/api` |
 | Contract | `contracts/varigate.py`, Python on GenVM |
 | Frontend | Vite + React + TypeScript, deploys to Vercel as a static SPA |
-| Wallet | in-browser burner (primary) or MetaMask via the GenLayer snap |
+| Wallet | any EIP-6963 wallet (MetaMask, Rabby, …) on Studio as chain 61999, or a demo key |
 
 Not Asimov, not Bradbury. The hosted Studio needs no Docker and no local node — `npm run deploy`
 talks straight to it.
@@ -140,16 +140,35 @@ The Studio RPC reflects any `Origin`, so browser calls work from a Vercel domain
 
 ## The wallet adapter
 
-Two connectors behind one `useWallet()` hook.
+Real wallets, no snap, no Flask.
 
-**Studio burner** — generates a keypair in the browser, keeps it in `localStorage`, and asks the
-Studio faucet for 250 GEN the first time it sees a zero balance. This is the path that actually
-works against the simulator, because Studio accounts are not MetaMask accounts. The key can be
-revealed and re-imported to move the same account between devices.
+Studio answers `eth_chainId`, `net_version`, `eth_getBlockByNumber`, `eth_gasPrice` and
+`eth_estimateGas`, which is everything a wallet needs to treat it as an ordinary EVM chain. So the
+adapter adds it as network **61999** and signs through the wallet directly — the GenLayer MetaMask
+snap is never involved.
 
-**MetaMask** — an EIP-1193 provider handed to `createClient({ provider })`, which routes through
-the GenLayer snap. Offered and wired up, but it targets the public networks; on Studio it will
-say so rather than failing halfway through a signature.
+**Discovery is EIP-6963.** `window.ethereum` is a single slot that whichever extension loaded last
+gets to squat on, so a browser with MetaMask *and* Rabby installed will silently hand you the wrong
+one. Under 6963 every wallet announces itself with a name, an icon and a stable reverse-DNS id, and
+the user picks from a list. `window.ethereum` is kept only as a last-resort fallback.
+
+The connect flow:
+
+1. `eth_requestAccounts` on the chosen provider
+2. `wallet_switchEthereumChain` → on `4902`, `wallet_addEthereumChain` with the Studio params
+3. faucet the address if it is empty — Studio has no bridge, so a fresh address is stuck at zero
+4. `createClient({ chain: studionet, account: address, provider })`
+
+That fourth line matters: genlayer-js only routes `eth_sendTransaction` / `personal_sign` to the
+provider when `account` is an **address string**. Hand it an account object and it silently looks
+for a local private key instead.
+
+`accountsChanged` and `chainChanged` are both wired. Switch networks in your wallet and the pill
+turns amber, the balance is replaced by "wrong network", and the account menu offers a one-click
+switch back.
+
+**Demo account** — a throwaway key generated in the browser for people who do not want to install
+anything. Clearly secondary in the UI, and it never asks anyone to paste a private key.
 
 ---
 

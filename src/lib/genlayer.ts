@@ -24,8 +24,20 @@ export function clientForKey(privateKey: `0x${string}`): Client {
   return createClient({ chain: studionet, account: createAccount(privateKey) }) as Client;
 }
 
-export function clientForProvider(provider: unknown): Client {
-  return createClient({ chain: studionet, provider: provider as never }) as Client;
+/**
+ * Client backed by an injected wallet.
+ *
+ * The address must be passed as a plain string, not an account object —
+ * genlayer-js only routes eth_requestAccounts / eth_sendTransaction /
+ * personal_sign to the provider when `account` is an address. Hand it an
+ * account object and it will look for a local private key instead.
+ */
+export function clientForProvider(address: string, provider: unknown): Client {
+  return createClient({
+    chain: studionet,
+    account: address as `0x${string}`,
+    provider: provider as never,
+  }) as Client;
 }
 
 export { createAccount, generatePrivateKey };
