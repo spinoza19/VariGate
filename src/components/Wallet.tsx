@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useWallet } from "../wallet/WalletContext";
 import { fromWei, short } from "../lib/format";
 import "./wallet.css";
@@ -63,10 +64,26 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+
+    // Freeze the page behind the modal, and pad for the scrollbar we just
+    // removed so the layout does not jump sideways as it opens.
+    const gap = window.innerWidth - document.documentElement.clientWidth;
+    const prev = { overflow: document.body.style.overflow, pad: document.body.style.paddingRight };
+    document.body.style.overflow = "hidden";
+    if (gap > 0) document.body.style.paddingRight = `${gap}px`;
+
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev.overflow;
+      document.body.style.paddingRight = prev.pad;
+    };
   }, [onClose]);
 
-  return (
+  // Portalled to <body> deliberately. The trigger lives inside .topbar, which
+  // has a backdrop-filter — and a filtered ancestor becomes the containing
+  // block for position:fixed descendants, so an inline modal would be trapped
+  // inside the header strip instead of covering the viewport.
+  return createPortal(
     <div className="cw-scrim" onClick={onClose}>
       <div
         className="cw card fade-up"
@@ -150,7 +167,8 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
