@@ -138,7 +138,7 @@ export async function ensureChain(provider: WalletProvider): Promise<void> {
 export function readableWalletError(err: unknown): string {
   const e = err as { code?: number; message?: string };
   if (e?.code === 4001) return "You rejected the request in your wallet.";
-  if (e?.code === -32002) return "Your wallet already has a pending request — open it and finish there.";
+  if (e?.code === -32002) return "Your wallet already has a pending request. Open it and finish there.";
   if (e?.code === 4902) return "Your wallet refused to add the GenLayer Studio network.";
   const msg = e?.message ?? String(err);
   return msg.split("\n")[0].slice(0, 200);

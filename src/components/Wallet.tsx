@@ -80,7 +80,7 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   // Portalled to <body> deliberately. The trigger lives inside .topbar, which
-  // has a backdrop-filter — and a filtered ancestor becomes the containing
+  // has a backdrop-filter, and a filtered ancestor becomes the containing
   // block for position:fixed descendants, so an inline modal would be trapped
   // inside the header strip instead of covering the viewport.
   return createPortal(
@@ -128,8 +128,8 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
             <div className="cw-none">
               <span className="label">No wallet detected</span>
               <p>
-                Install MetaMask, Rabby or any EIP-6963 wallet and reload — it will appear here
-                on its own. Or try the app with a demo account below.
+                Install MetaMask, Rabby or any EIP-6963 wallet and reload, and it will appear
+                here on its own. Or try the app with a demo account below.
               </p>
             </div>
           )}
@@ -139,7 +139,7 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
             <p>
               VariGate runs on <strong>GenLayer Studio</strong>, chain 61999. Your wallet is asked
               to add it as a network the first time, and the faucet drops 250 test GEN on your
-              address so you can actually transact. Studio is a simulator — the GEN is not worth
+              address so you can actually transact. Studio is a simulator, so the GEN is not worth
               anything and no mainnet asset is ever touched.
             </p>
           </div>
@@ -161,7 +161,7 @@ export function ConnectModal({ onClose }: { onClose: () => void }) {
               Continue with a demo account
             </button>
             <p className="hint">
-              A throwaway key generated in this browser. Nothing to install, nothing to approve —
+              A throwaway key generated in this browser. Nothing to install, nothing to approve,
               but it lives in this browser only.
             </p>
           </div>
@@ -257,7 +257,7 @@ function AccountMenu({ onClose }: { onClose: () => void }) {
 
       <p className="hint" style={{ marginTop: 12 }}>
         {kind === "wallet"
-          ? "Every write is signed in your wallet. Studio is a simulator — this GEN has no value."
+          ? "Every write is signed in your wallet. Studio is a simulator, so this GEN has no value."
           : "This demo key lives in this browser's storage. Clear the site data and it is gone."}
       </p>
 

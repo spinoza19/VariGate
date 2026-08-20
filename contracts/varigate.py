@@ -1,6 +1,6 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 """
-VariGate — trustless condition escrow for rare plant sales.
+VariGate: trustless condition escrow for rare plant sales.
 
 The seller lists a specimen with a natural-language claim and a "before" photo.
 The buyer funds the escrow, the seller ships, and on arrival the buyer uploads an
@@ -9,7 +9,7 @@ model reports *observations* about the two photos, and the contract turns those
 observations into a payout tier with plain deterministic arithmetic.
 
 That split is the whole design. The LLM is never asked "how much money should
-move" — it is only asked "what do you see". Validators can therefore re-derive
+move". It is only asked "what do you see". Validators can therefore re-derive
 the payout from the leader's own reported observations and reject any leader
 whose numbers do not add up, without needing a vision model themselves.
 """
@@ -410,7 +410,7 @@ class VariGate(gl.Contract):
 
     @gl.public.view
     def get_all(self) -> str:
-        """Every escrow without the photo payloads — cheap enough to poll."""
+        """Every escrow without the photo payloads, cheap enough to poll."""
         return json.dumps(
             [self._to_dict(i, self.escrows[i]) for i in range(len(self.escrows))]
         )

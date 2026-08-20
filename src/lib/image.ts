@@ -40,7 +40,7 @@ export async function prepareImage(file: File | Blob): Promise<PreparedImage> {
   if (!blob) throw new Error("could not encode the photograph");
   if (blob.size > MAX_BYTES) {
     throw new Error(
-      `photograph is still ${Math.round(blob.size / 1024)} KB after compression — try a smaller crop`,
+      `photograph is still ${Math.round(blob.size / 1024)} KB after compression, try a smaller crop`,
     );
   }
 

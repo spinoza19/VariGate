@@ -33,7 +33,7 @@ export function countdown(seconds: number): string {
 }
 
 export function stamp(unix: number): string {
-  if (!unix) return "—";
+  if (!unix) return "not yet";
   return new Date(unix * 1000)
     .toISOString()
     .replace("T", " ")

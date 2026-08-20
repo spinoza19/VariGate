@@ -227,8 +227,8 @@ function Empty({ onMount }: { onMount: () => void }) {
   return (
     <div className="archive-empty">
       <p style={{ maxWidth: 44 + "ch", margin: "0 auto 16px" }}>
-        Nothing on deposit yet. Mount a specimen and the archive fills up — the demo sheets in the
-        mount form take about a minute each to move through the full cycle.
+        Nothing on deposit yet. Mount a specimen and the archive fills up. The demo sheets in
+        the mount form take about a minute each to move through the full cycle.
       </p>
       <button className="btn leaf" onClick={onMount}>
         Mount a specimen

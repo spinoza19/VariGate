@@ -110,7 +110,7 @@ export function Mechanism() {
       <div className="mech-notes">
         <Note
           k="Why buckets, not percentages"
-          v="Two validators asked for an exact number will answer 38 and 44 and consensus dies. Asked for a band — none, low, mid, high — they agree. Every field in the rubric is an enum, a boolean or a small integer for exactly that reason."
+          v="Two validators asked for an exact number will answer 38 and 44 and consensus dies. Asked for a band (none, low, mid, high), they agree. Every field in the rubric is an enum, a boolean or a small integer for exactly that reason."
         />
         <Note
           k="What a validator can check without a model"

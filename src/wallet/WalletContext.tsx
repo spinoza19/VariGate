@@ -30,11 +30,11 @@ import {
 /**
  * Two ways in, and they are not equals.
  *
- *  wallet — a real EIP-6963 wallet. Studio answers enough of the standard EVM
- *           surface that MetaMask, Rabby and friends can add it as an ordinary
- *           network and sign for it; no GenLayer snap and no MetaMask Flask.
- *  demo   — a keypair generated in this browser, funded from the Studio faucet.
- *           For people who want to try the thing without installing anything.
+ *  wallet: a real EIP-6963 wallet. Studio answers enough of the standard EVM
+ *          surface that MetaMask, Rabby and friends can add it as an ordinary
+ *          network and sign for it; no GenLayer snap and no MetaMask Flask.
+ *  demo:   a keypair generated in this browser, funded from the Studio faucet.
+ *          For people who want to try the thing without installing anything.
  */
 export type ConnectionKind = "wallet" | "demo";
 
@@ -247,7 +247,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // ------------------------------------------------------- reconnection ---
 
   // A demo account is just a local key, so it comes back silently. A real
-  // wallet only reconnects if it still reports the site as authorised —
+  // wallet only reconnects if it still reports the site as authorised.
   // eth_accounts never prompts, so this stays quiet either way.
   useEffect(() => {
     const last = localStorage.getItem(LAST_KIND);
@@ -270,7 +270,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         attach(found.provider, accounts[0], found.name, found.icon, rdns);
         setWrongChain(chainId?.toLowerCase() !== CHAIN_ID_HEX);
       } catch {
-        /* silent — the user can always click connect */
+        /* silent: the user can always click connect */
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,7 +1,7 @@
 """Generate the synthetic specimen photographs used by the demo seed.
 
 Everything here is drawn from scratch so the repo carries no third-party
-imagery. The shapes are deliberately plain — the point is that a vision model
+imagery. The shapes are deliberately plain. The point is that a vision model
 can count leaves and read roughly how much of the tissue is non-green, which is
 exactly what the contract's rubric asks for.
 

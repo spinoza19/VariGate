@@ -27,7 +27,7 @@ export function clientForKey(privateKey: `0x${string}`): Client {
 /**
  * Client backed by an injected wallet.
  *
- * The address must be passed as a plain string, not an account object —
+ * The address must be passed as a plain string, not an account object.
  * genlayer-js only routes eth_requestAccounts / eth_sendTransaction /
  * personal_sign to the provider when `account` is an address. Hand it an
  * account object and it will look for a local private key instead.
@@ -58,9 +58,9 @@ export async function getBalance(address: string): Promise<bigint> {
 }
 
 /**
- * Studio faucet. Only exists on the simulator — on a real network this is a
- * bridge deposit instead, which is exactly why the burner wallet below is
- * labelled as a Studio-only convenience.
+ * Studio faucet. Only exists on the simulator. On a real network the
+ * equivalent is a bridge deposit, which is why nothing in the UI presents this
+ * as anything other than a Studio convenience.
  */
 export async function faucet(address: string, gen = 250): Promise<string> {
   return rpc<string>("sim_fundAccount", [address, Number(BigInt(gen) * 10n ** 18n)]);

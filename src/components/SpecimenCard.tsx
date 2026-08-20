@@ -48,7 +48,7 @@ export function SpecimenCard({
         <dl className="sheet-rows">
           <Row k="Price" v={`${fromWei(escrow.amount)} GEN`} />
           <Row k="Consignor" v={short(escrow.seller)} />
-          <Row k="Recipient" v={isZero(escrow.buyer) ? "—" : short(escrow.buyer)} />
+          <Row k="Recipient" v={isZero(escrow.buyer) ? "unsold" : short(escrow.buyer)} />
           {escrow.status === STATUS.SHIPPED ? (
             <Row k="Unboxing closes" v={countdown(escrow.seconds_left)} />
           ) : null}

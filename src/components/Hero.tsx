@@ -67,7 +67,7 @@ export function Hero({
           </div>
           <p className="hero-lede">
             A rare plant is bought from a photograph and a sentence. When the box opens on the
-            other side of the world, someone has to decide whether the sentence was true — and no
+            other side of the world, someone has to decide whether the sentence was true, and no
             marketplace on earth employs a botanist for that.
           </p>
           <p className="hero-lede">

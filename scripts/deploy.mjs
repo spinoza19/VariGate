@@ -14,7 +14,7 @@ import {
 } from "./lib.mjs";
 
 const FEE_BPS = 200; // 2% platform fee
-const STRICT_VISION = false; // see contracts/varigate.py — Studio runs a mixed validator set
+const STRICT_VISION = false; // see contracts/varigate.py; Studio runs a mixed validator set
 
 const account = deployer();
 const client = clientFor(account);

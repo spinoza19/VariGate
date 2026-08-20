@@ -35,7 +35,7 @@ export function VerdictSheet({
           <h3 className="verdict-tier">{TIER_LABEL[verdict.tier]}</h3>
           <span className="meta">
             {verdict.auto
-              ? `automatic — ${verdict.auto.replace(/_/g, " ")}`
+              ? `automatic: ${verdict.auto.replace(/_/g, " ")}`
               : `adjudicated on-chain${verdict.days_in_transit != null ? ` · ${verdict.days_in_transit}d in transit` : ""}`}
           </span>
         </div>

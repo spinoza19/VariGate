@@ -147,7 +147,7 @@ export function SpecimenDetail({
             <blockquote>{escrow.claim}</blockquote>
             <p className="hint">
               This sentence is the contract term. It is passed to the model as quoted data, never
-              as an instruction — a seller cannot write their way to a payout.
+              as an instruction, so a seller cannot write their way to a payout.
             </p>
           </section>
 
@@ -241,7 +241,7 @@ export function SpecimenDetail({
                 <span className="label">File the unboxing</span>
                 <p className="action-body">
                   One photograph of the plant as it arrived. This is the transaction that runs the
-                  adjudication — the money is decided by the time it confirms.
+                  adjudication, and the money is decided by the time it confirms.
                 </p>
                 <ArrivalPicker value={arrival} onChange={setArrival} onError={setError} />
                 <button className="btn accent block" disabled={!arrival} onClick={() => void adjudicate()}>
@@ -270,7 +270,7 @@ export function SpecimenDetail({
             {escrow.status === STATUS.JUDGED ? (
               <Action
                 title="Release the funds"
-                body="The verdict is on chain. Settlement is public — anyone can trigger it, and it can only pay out what the verdict says."
+                body="The verdict is on chain. Settlement is public: anyone can trigger it, and it can only pay out what the verdict says."
                 cta="Settle"
                 busy={busy === "settle"}
                 onClick={() => run("settle", () => settle(client!, escrow.id))}
@@ -279,7 +279,7 @@ export function SpecimenDetail({
 
             {escrow.status === STATUS.SETTLED ? (
               <p className="detail-done">
-                Settled. Nothing further to do — the ledger above is what moved.
+                Settled. Nothing further to do. The ledger above is what moved.
               </p>
             ) : null}
 

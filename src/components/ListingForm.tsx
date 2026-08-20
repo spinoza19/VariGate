@@ -161,7 +161,7 @@ export function ListingForm({ onListed }: { onListed: () => Promise<void> | void
       </div>
 
       <div className="listing-plate">
-        <span className="label">Plate I — as listed</span>
+        <span className="label">Plate I, as listed</span>
         <div className="listing-drop" onClick={() => fileRef.current?.click()}>
           <input
             ref={fileRef}
@@ -204,7 +204,7 @@ export function ListingForm({ onListed }: { onListed: () => Promise<void> | void
           <span className="label">One photograph, not a gallery</span>
           <p>
             GenVM accepts at most two images per prompt, and the adjudication needs one slot for
-            the arrival plate. So the listing gets exactly one — make it the honest one, showing
+            the arrival plate. So the listing gets exactly one. Make it the honest one, showing
             every leaf.
           </p>
         </div>

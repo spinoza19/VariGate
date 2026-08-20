@@ -38,7 +38,7 @@ const TIERS = {
 
 const SCENARIOS = {
   honest: {
-    label: "Honest sale — arrives as described, one bruised leaf",
+    label: "Honest sale: arrives as described, one bruised leaf",
     species: "Monstera deliciosa 'Albo Variegata'",
     claim:
       "Four-leaf cutting, roughly 40% white sectorial variegation across the blades, " +
@@ -46,10 +46,10 @@ const SCENARIOS = {
     price: 2.0,
     before: "albo-before.jpg",
     after: "albo-after.jpg",
-    expect: "high tier — transit damage only",
+    expect: "high tier, transit damage only",
   },
   oversold: {
-    label: "Oversold — variegation collapsed and a leaf did not survive",
+    label: "Oversold: variegation collapsed and a leaf did not survive",
     species: "Philodendron 'Thai Sunrise'",
     claim:
       "Five leaves, heavy variegation on every blade, over 55% cream tissue, " +
@@ -57,10 +57,10 @@ const SCENARIOS = {
     price: 3.5,
     before: "thai-before.jpg",
     after: "thai-after.jpg",
-    expect: "middle tier — claim not supported, leaf loss",
+    expect: "middle tier, claim not supported, leaf loss",
   },
   rotten: {
-    label: "Shipped rotten — the failure the escrow exists for",
+    label: "Shipped rotten: the failure the escrow exists for",
     species: "Philodendron spiritus-sancti",
     claim:
       "Three healthy leaves, deep green, clean stem with no soft tissue. " +
@@ -68,7 +68,7 @@ const SCENARIOS = {
     price: 5.0,
     before: "spiritus-before.jpg",
     after: "spiritus-after.jpg",
-    expect: "low tier — rot present",
+    expect: "low tier, rot present",
   },
 };
 
@@ -111,13 +111,13 @@ for (const [who, acct] of [
 const only = process.argv[2];
 const chosen = only ? { [only]: SCENARIOS[only] } : SCENARIOS;
 if (only && !SCENARIOS[only]) {
-  throw new Error(`unknown scenario '${only}' — pick one of ${Object.keys(SCENARIOS)}`);
+  throw new Error(`unknown scenario '${only}', pick one of ${Object.keys(SCENARIOS)}`);
 }
 
 const results = [];
 
 for (const [key, s] of Object.entries(chosen)) {
-  step(`${key.toUpperCase()} — ${s.label}`);
+  step(`${key.toUpperCase()}: ${s.label}`);
   log(`  expecting: ${s.expect}`);
 
   const before = img(s.before);
@@ -159,7 +159,7 @@ for (const [key, s] of Object.entries(chosen)) {
   });
   await awaitTx(sellerClient, h, "ship");
 
-  // 4. unbox — this is the transaction that runs the vision model --------
+  // 4. unbox: this is the transaction that runs the vision model ---------
   log("  … adjudicating (vision model + validator consensus, this is the slow one)");
   h = await buyerClient.writeContract({
     address,
@@ -172,7 +172,7 @@ for (const [key, s] of Object.entries(chosen)) {
   const raw = await anyClient.readContract({ address, functionName: "get_escrow", args: [id] });
   const e = JSON.parse(raw);
   if (!e.verdict) {
-    warn(`no verdict recorded — tx status ${judgeReceipt.status}`);
+    warn(`no verdict recorded, tx status ${judgeReceipt.status}`);
     results.push({ key, tier: null, note: "no verdict" });
     continue;
   }

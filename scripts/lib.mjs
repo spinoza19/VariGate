@@ -19,7 +19,7 @@ if (!process.env.DEPLOYER_PRIVATE_KEY && existsSync(resolve(ROOT, ".env.local"))
 
 export function deployer() {
   const pk = process.env.DEPLOYER_PRIVATE_KEY;
-  if (!pk) throw new Error("DEPLOYER_PRIVATE_KEY missing — copy .env.example to .env.local");
+  if (!pk) throw new Error("DEPLOYER_PRIVATE_KEY missing, copy .env.example to .env.local");
   return createAccount(pk);
 }
 
@@ -79,7 +79,7 @@ export function saveDeployment(data) {
 
 export function loadDeployment() {
   if (!existsSync(DEPLOYMENT_FILE)) {
-    throw new Error("No deployment found — run `npm run deploy` first.");
+    throw new Error("No deployment found, run `npm run deploy` first.");
   }
   return JSON.parse(readFileSync(DEPLOYMENT_FILE, "utf8"));
 }
@@ -129,7 +129,7 @@ export const isTransient = (e) =>
 /**
  * Studio consensus on a vision call takes a while. Poll generously, report
  * progress so a long wait does not look like a hang, and survive a dropped
- * connection mid-poll — the transaction is already on the network, so losing
+ * connection mid-poll. The transaction is already on the network, so losing
  * the socket is no reason to lose the run.
  */
 export async function awaitTx(client, hash, label = "tx", status = "FINALIZED") {

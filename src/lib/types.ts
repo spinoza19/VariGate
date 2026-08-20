@@ -17,7 +17,7 @@ export const STATUS_LABEL: Record<number, string> = {
 };
 
 export const TIER_LABEL: Record<number, string> = {
-  0: "—",
+  0: "pending",
   1: "FULL REFUND",
   2: "PARTIAL 25",
   3: "PARTIAL 50",

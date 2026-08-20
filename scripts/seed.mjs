@@ -3,7 +3,7 @@
  * a verdict so the archive is not empty on first load.
  *
  * Resumable on purpose. Each sheet takes several minutes of real vision calls,
- * and a dropped connection halfway through should not mean starting over — the
+ * and a dropped connection halfway through should not mean starting over. The
  * script reads the current on-chain status of every escrow and only performs
  * the steps that are still outstanding.
  */
@@ -83,7 +83,7 @@ async function resilient(label, fn, tries = 3) {
     } catch (e) {
       if (!isTransient(e) || i >= tries) throw e;
       const msg = String(e?.message ?? e).split("\n")[0].slice(0, 90);
-      warn(`${label}: ${msg} — retry ${i}/${tries - 1} in 15s`);
+      warn(`${label}: ${msg}, retry ${i}/${tries - 1} in 15s`);
       await new Promise((r) => setTimeout(r, 15_000));
     }
   }
@@ -174,7 +174,7 @@ for (const s of SHEETS) {
   }
 
   if (e.status < JUDGED) {
-    warn(`#${id} left in transit — adjudication did not land`);
+    warn(`#${id} left in transit, adjudication did not land`);
     continue;
   }
 
@@ -193,7 +193,7 @@ for (const s of SHEETS) {
   } else if (e.status === SETTLED) {
     ok("already settled");
   } else {
-    ok("left judged — the archive will show a live Settle action");
+    ok("left judged, the archive will show a live Settle action");
   }
 }
 

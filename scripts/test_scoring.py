@@ -2,7 +2,7 @@
 
 The whole point of the contract's design is that the money side is ordinary
 Python with no model in it. That makes it testable on a laptop in milliseconds,
-without a chain, a validator or an API key — so it should be tested that way.
+without a chain, a validator or an API key, so it should be tested that way.
 
     python scripts/test_scoring.py
 
