@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useWallet } from "../wallet/WalletContext";
 import {
   cancel,
+  checkDelivery,
   claimNoShip,
   claimNoShow,
+  confirmDelivery,
   fundEscrow,
   markShipped,
   readEscrow,
@@ -158,13 +160,23 @@ export function SpecimenDetail({
             <Fact k="Funded" v={stamp(escrow.funded_at)} />
             <Fact k="Shipped" v={stamp(escrow.shipped_at)} />
             <Fact
+              k="Delivered"
+              v={
+                escrow.delivered_at
+                  ? `${stamp(escrow.delivered_at)} (${escrow.delivery_source})`
+                  : "not yet recorded"
+              }
+            />
+            <Fact
               k="Unboxing window"
               v={
-                escrow.status === STATUS.SHIPPED
-                  ? `${countdown(escrow.seconds_left)} left`
-                  : escrow.arrival_deadline
-                    ? "closed"
-                    : "not started"
+                escrow.awaiting_delivery
+                  ? "opens on delivery"
+                  : escrow.seconds_left > 0
+                    ? `${countdown(escrow.seconds_left)} left`
+                    : escrow.arrival_deadline
+                      ? "closed"
+                      : "not started"
               }
             />
           </section>
@@ -236,7 +248,29 @@ export function SpecimenDetail({
             ) : null}
 
             {/* ------------------------------------------------- shipped -- */}
-            {escrow.status === STATUS.SHIPPED && isBuyer ? (
+            {escrow.awaiting_delivery && isBuyer ? (
+              <Action
+                title="Has it arrived?"
+                body="Recording delivery starts your 48 hour window to file the unboxing. Filing the unboxing does it for you, so this is only worth pressing if you want to open the box later."
+                cta="Confirm delivery"
+                ghost
+                busy={busy === "delivered"}
+                onClick={() => run("delivered", () => confirmDelivery(client!, escrow.id))}
+              />
+            ) : null}
+
+            {escrow.awaiting_delivery && isSeller ? (
+              <Action
+                title="Waiting on delivery"
+                body="Your dispatch did not start any clock against the buyer, and it cannot. If the tracking reference is a URL, the contract can read the carrier's page itself and start the window from the delivery date the carrier states."
+                cta="Check the carrier"
+                ghost
+                busy={busy === "carrier"}
+                onClick={() => run("carrier", () => checkDelivery(client!, escrow.id))}
+              />
+            ) : null}
+
+            {(escrow.status === STATUS.SHIPPED || escrow.status === STATUS.DELIVERED) && isBuyer ? (
               <div className="action accent">
                 <span className="label">File the unboxing</span>
                 <p className="action-body">
@@ -250,12 +284,14 @@ export function SpecimenDetail({
               </div>
             ) : null}
 
-            {escrow.status === STATUS.SHIPPED && isSeller ? (
+            {(escrow.status === STATUS.SHIPPED || escrow.status === STATUS.DELIVERED) && isSeller ? (
               <Action
                 title="Buyer never filed"
                 body={
                   escrow.seconds_left > 0
-                    ? `Available in ${countdown(escrow.seconds_left)}, once the unboxing window closes.`
+                    ? escrow.awaiting_delivery
+                      ? `No delivery is on record, so this stays locked for ${countdown(escrow.seconds_left)}: the 30 day transit backstop plus the buyer's full 48 hours.`
+                      : `Available in ${countdown(escrow.seconds_left)}, once the buyer's 48 hours since delivery are up.`
                     : "The window has closed with no unboxing. The sale completes in your favour."
                 }
                 cta="Close in my favour"

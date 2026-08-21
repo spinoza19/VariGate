@@ -3,6 +3,22 @@ import { readConfig, readEscrows } from "./contract";
 import { networkStats } from "./genlayer";
 import type { Config, Escrow } from "./types";
 
+/**
+ * The hosted simulator allows 500 requests an hour per caller and sits behind a
+ * CDN that drops the occasional connection. Neither is a broken dApp, and
+ * neither should be reported to a visitor as a raw viem stack.
+ */
+export function readableRpcError(e: unknown): string {
+  const raw = String((e as Error)?.message ?? e);
+  if (/rate limit/i.test(raw)) {
+    return "GenLayer Studio is rate limiting this browser (500 requests an hour). The archive will come back on its own shortly.";
+  }
+  if (/Failed to fetch|NetworkError|ECONNRESET|timeout/i.test(raw)) {
+    return "Could not reach GenLayer Studio just now. Retrying automatically.";
+  }
+  return raw.split("\n")[0].slice(0, 220);
+}
+
 export function useEscrows(pollMs = 15_000) {
   const [escrows, setEscrows] = useState<Escrow[]>([]);
   const [config, setConfig] = useState<Config | null>(null);
@@ -27,7 +43,7 @@ export function useEscrows(pollMs = 15_000) {
       setEscrows(list);
       setError(null);
     } catch (e) {
-      if (alive.current) setError(e instanceof Error ? e.message : String(e));
+      if (alive.current) setError(readableRpcError(e));
     } finally {
       if (alive.current) setLoading(false);
     }

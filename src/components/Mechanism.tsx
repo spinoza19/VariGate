@@ -117,6 +117,10 @@ export function Mechanism() {
           v="That leaves did not grow inside a shipping box. That rot was not reported alongside 'no damage'. That a plant said to be the wrong cultivar was not also said to match the claim. Contradictory reports are rejected before they reach the payout."
         />
         <Note
+          k="Why the clock starts at delivery"
+          v="A window that starts at dispatch is a window the seller controls. Shipping takes a week, so a seller could post an empty box, wait two days and close the escrow in their own favour before it arrived. Dispatch now starts nothing. The 48 hours run from delivery, established by the buyer or read off the carrier's own tracking page, and where no delivery is on record the seller waits 32 days rather than 2."
+        />
+        <Note
           k="Where this is still soft"
           v="Studio runs a mixed validator set and not every model can see. Vision-capable validators re-read the plates and must land within one tier of the leader; the rest verify the arithmetic only. GenLayer's appeal path is the backstop, and it is the honest answer to 'what if the leader lied'."
         />

@@ -29,8 +29,9 @@ import {
 const LISTED = 0;
 const FUNDED = 1;
 const SHIPPED = 2;
-const JUDGED = 3;
-const SETTLED = 4;
+const DELIVERED = 3;
+const JUDGED = 4;
+const SETTLED = 5;
 
 const SHEETS = [
   {
@@ -157,9 +158,19 @@ for (const s of SHEETS) {
     await reload();
   }
 
+  // Dispatch no longer starts the buyer's clock, so the demo records delivery
+  // explicitly before filing, the same way a real buyer would.
+  if (e.status === SHIPPED) {
+    const h = await resilient("delivery", () =>
+      buyerC.writeContract({ address, functionName: "confirm_delivery", args: [id], value: 0n }),
+    );
+    await awaitTx(buyerC, h, "confirm delivery");
+    await reload();
+  }
+
   // A leader's model can time out or return something unparseable. That reverts
   // cleanly, so resending simply draws a different leader.
-  for (let attempt = 1; attempt <= 3 && e.status === SHIPPED; attempt++) {
+  for (let attempt = 1; attempt <= 3 && e.status === DELIVERED; attempt++) {
     const h = await resilient("adjudicate", () =>
       buyerC.writeContract({
         address,
@@ -170,7 +181,7 @@ for (const s of SHEETS) {
     );
     await awaitTx(buyerC, h, `adjudicate (try ${attempt})`);
     await reload();
-    if (e.status === SHIPPED) warn("leader produced no verdict, drawing another");
+    if (e.status === DELIVERED) warn("leader produced no verdict, drawing another");
   }
 
   if (e.status < JUDGED) {

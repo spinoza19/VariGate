@@ -8,12 +8,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "python scripts/test_scoring.py",
+    "test": "python scripts/test_scoring.py && python scripts/test_lifecycle.py",
     "specimens": "python scripts/make_specimens.py",
     "fund": "node scripts/fund.mjs",
     "deploy": "node scripts/deploy.mjs",
     "seed": "node scripts/seed.mjs",
-    "e2e": "node scripts/e2e.mjs"
+    "e2e": "node scripts/e2e.mjs",
+    "proof": "node scripts/proof_timeout.mjs"
   },
   "dependencies": {
     "genlayer-js": "1.1.8",

@@ -138,6 +138,12 @@ export const fundEscrow = (client: Client, id: number, amountWei: bigint, onProg
 export const markShipped = (client: Client, id: number, tracking: string, onProgress?: TxProgress) =>
   send(client, "mark_shipped", [id, tracking], 0n, onProgress);
 
+export const confirmDelivery = (client: Client, id: number, onProgress?: TxProgress) =>
+  send(client, "confirm_delivery", [id], 0n, onProgress);
+
+export const checkDelivery = (client: Client, id: number, onProgress?: TxProgress) =>
+  send(client, "check_delivery", [id], 0n, onProgress);
+
 export const submitArrival = (
   client: Client,
   id: number,

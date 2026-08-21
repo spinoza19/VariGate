@@ -50,6 +50,9 @@ export function SpecimenCard({
           <Row k="Consignor" v={short(escrow.seller)} />
           <Row k="Recipient" v={isZero(escrow.buyer) ? "unsold" : short(escrow.buyer)} />
           {escrow.status === STATUS.SHIPPED ? (
+            <Row k="Unboxing" v="opens on delivery" />
+          ) : null}
+          {escrow.status === STATUS.DELIVERED ? (
             <Row k="Unboxing closes" v={countdown(escrow.seconds_left)} />
           ) : null}
         </dl>
@@ -65,14 +68,15 @@ export function StatusChip({ escrow }: { escrow: Escrow }) {
       ? "neutral"
       : s === STATUS.JUDGED
         ? "indigo"
-        : s === STATUS.SHIPPED
+        : s === STATUS.SHIPPED || s === STATUS.DELIVERED
           ? "amber"
           : s === STATUS.CANCELLED
             ? "red"
             : "green";
+  const live = s === STATUS.SHIPPED || s === STATUS.DELIVERED;
   return (
     <span className={`chip ${tone}`}>
-      {s === STATUS.SHIPPED ? <span className="dot pulse" /> : null}
+      {live ? <span className="dot pulse" /> : null}
       {STATUS_LABEL[s]}
     </span>
   );

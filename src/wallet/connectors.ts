@@ -97,12 +97,16 @@ import { CHAIN, RPC_URL } from "../lib/genlayer";
 
 export const CHAIN_ID_HEX = `0x${CHAIN.id.toString(16)}` as const;
 
+export const EXPLORER_URL = "https://explorer-studio.genlayer.com";
+
 const CHAIN_PARAMS = {
   chainId: CHAIN_ID_HEX,
   chainName: "GenLayer Studio",
   rpcUrls: [RPC_URL],
   nativeCurrency: { name: "GEN Token", symbol: "GEN", decimals: 18 },
-  blockExplorerUrls: ["https://genlayer-explorer.vercel.app"],
+  // Not the URL carried in the genlayer-js chain definition: that one is dead,
+  // and whatever goes here is what the wallet stores permanently.
+  blockExplorerUrls: [EXPLORER_URL],
 };
 
 /**

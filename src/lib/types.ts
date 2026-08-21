@@ -2,18 +2,20 @@ export const STATUS = {
   LISTED: 0,
   FUNDED: 1,
   SHIPPED: 2,
-  JUDGED: 3,
-  SETTLED: 4,
-  CANCELLED: 5,
+  DELIVERED: 3,
+  JUDGED: 4,
+  SETTLED: 5,
+  CANCELLED: 6,
 } as const;
 
 export const STATUS_LABEL: Record<number, string> = {
   0: "LISTED",
   1: "FUNDED",
   2: "IN TRANSIT",
-  3: "JUDGED",
-  4: "SETTLED",
-  5: "WITHDRAWN",
+  3: "DELIVERED",
+  4: "JUDGED",
+  5: "SETTLED",
+  6: "WITHDRAWN",
 };
 
 export const TIER_LABEL: Record<number, string> = {
@@ -74,8 +76,12 @@ export interface Escrow {
   created_at: number;
   funded_at: number;
   shipped_at: number;
+  delivered_at: number;
+  delivery_source: string;
   arrival_deadline: number;
   seconds_left: number;
+  /** True while nobody has established delivery, so no clock is running yet. */
+  awaiting_delivery: boolean;
   tracking: string;
   verdict: string;
   has_before: boolean;
@@ -87,6 +93,7 @@ export interface Config {
   fee_bps: number;
   strict_vision: boolean;
   arrival_window_seconds: number;
+  max_transit_seconds: number;
   ship_window_seconds: number;
   max_image_bytes: number;
 }

@@ -57,6 +57,76 @@ listing and get paid.
 
 ---
 
+## Delivery, not dispatch
+
+A review found a real hole in the first version, and it was the worst kind: it
+inverted the point of the escrow.
+
+The buyer's 48-hour unboxing window used to start when the seller pressed
+"shipped". International plant shipping takes a week. So a seller could buy a
+label, wait two days, call `claim_no_show` and take 100% of the money before the
+parcel was anywhere near the buyer. Post an empty box, collect in full.
+
+The fix is that dispatch no longer starts any clock. One pure function now owns
+the entire timing policy:
+
+```python
+def _arrival_deadline(shipped_at: int, delivered_at: int) -> int:
+    if delivered_at > 0:
+        return delivered_at + ARRIVAL_WINDOW_SECONDS      # 48h from delivery
+    return shipped_at + MAX_TRANSIT_SECONDS + ARRIVAL_WINDOW_SECONDS
+```
+
+It guarantees one invariant: **`deadline - delivery >= 48h`, always.** When
+delivery is unknown the contract refuses to guess in the seller's favour. It
+assumes the parcel could still be in transit right up to the 30-day backstop and
+only then starts the buyer's 48 hours, so an unconfirmed shipment locks the
+seller out for 32 days rather than 2.
+
+Nothing the seller controls appears in either branch. Delivery can only be
+established two ways:
+
+| | Who | How |
+|---|---|---|
+| `confirm_delivery` | buyer only | says the parcel landed |
+| `check_delivery` | anyone | the contract reads the carrier's tracking page and takes the delivery date from it, clamped to `[shipped_at, now]` |
+
+The second is what stops the fix from becoming a buyer-side griefing tool: a
+seller facing a silent buyer does not have to wait 32 days, they point the
+contract at the tracking URL and let the carrier start the clock. That check is
+a `gl.nondet.web.render` plus a vision-free prompt, so it is the same
+observe-then-compute split as the adjudication itself.
+
+Filing an unboxing also records delivery implicitly, so a buyer who goes
+straight from the doorstep to the camera never sees the extra step.
+
+### Proving it
+
+```bash
+npm test          # 43 lifecycle assertions on the timing rule, plus 36 on payouts
+npm run proof     # replays the attack against the live contract
+```
+
+`npm run proof` lists, funds, ships, then tries `claim_no_show` as the seller
+before delivery and again during the buyer's window. Both are refused, the
+buyer files, the contract adjudicates. Output from the deployed contract:
+
+```
+escrow #0 status 2 (SHIPPED), awaiting_delivery true
+   dispatch did not start a clock: deadline is 32d away
+attack refused. escrow still status 2, nothing paid out
+status 3 (DELIVERED), source "buyer"
+   window now open for 48h from delivery
+refused again. status 3, buyer's 48h intact
+verdict tier 4, seller 75%, score 73
+```
+
+Day 30 arithmetic is covered offline instead, in `scripts/test_lifecycle.py`. No
+simulator can be fast-forwarded a month, and a test that cannot reach day 30
+cannot say anything about day 30.
+
+---
+
 ## What it runs on
 
 | | |
@@ -113,7 +183,8 @@ npm run dev
 
 | | |
 |---|---|
-| `npm test` | 36 offline assertions over the payout arithmetic: no chain, no key, milliseconds |
+| `npm test` | 79 offline assertions: 36 on the payout arithmetic, 43 on lifecycle and timeouts |
+| `npm run proof` | replays the reviewed timeout attack against the live contract |
 | `npm run e2e` | full lifecycle against Studio with balance accounting at each step |
 | `npm run e2e -- rotten` | one scenario only (`honest`, `oversold`, `rotten`) |
 | `npm run fund -- 0xabc… 500` | top an address up from the Studio faucet |
@@ -178,10 +249,12 @@ anything. Clearly secondary in the UI, and it never asks anyone to paste a priva
 |---|---|---|
 | `list_specimen(species, claim, amount, before_img)` | seller | mounts a sheet, returns its id |
 | `fund(id)` *payable* | buyer | locks the exact asking price |
-| `mark_shipped(id, tracking)` | seller | starts the 48-hour unboxing window |
+| `mark_shipped(id, tracking)` | seller | hands over to a carrier. Starts no clock against the buyer |
+| `confirm_delivery(id)` | buyer | records delivery, opening the 48-hour window |
+| `check_delivery(id)` | anyone | reads the carrier's page and records the delivery date it states |
 | `submit_arrival(id, after_img)` | buyer | **runs the adjudication and records the verdict** |
 | `settle(id)` | anyone | pays out strictly per the recorded verdict |
-| `claim_no_show(id)` | seller | after the window closes with no unboxing → seller keeps the sale |
+| `claim_no_show(id)` | seller | only once the buyer has had a full 48h post-delivery, or 32 days have passed with no delivery on record |
 | `claim_no_ship(id)` | buyer | 14 days after funding with no shipment → full refund, no fee |
 | `cancel(id)` | seller | withdraws an unfunded listing |
 

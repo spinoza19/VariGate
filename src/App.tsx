@@ -9,6 +9,7 @@ import { useEscrows } from "./lib/useEscrows";
 import { useWallet } from "./wallet/WalletContext";
 import { fromWei, sameAddress } from "./lib/format";
 import { CONTRACT_ADDRESS, RPC_URL } from "./lib/genlayer";
+import { EXPLORER_URL } from "./wallet/connectors";
 import { STATUS } from "./lib/types";
 import "./app.css";
 
@@ -201,8 +202,13 @@ export default function App() {
             </p>
           </div>
           <dl className="footer-facts">
-            <FooterFact k="Contract" v={CONTRACT_ADDRESS} />
+            <FooterFact
+              k="Contract"
+              v={CONTRACT_ADDRESS}
+              href={`${EXPLORER_URL}/address/${CONTRACT_ADDRESS}`}
+            />
             <FooterFact k="RPC" v={RPC_URL} />
+            <FooterFact k="Explorer" v="explorer-studio.genlayer.com" href={EXPLORER_URL} />
             <FooterFact k="Fee" v={`${(config?.fee_bps ?? 200) / 100}%`} />
             <FooterFact k="Unboxing window" v="48h" />
             <FooterFact k="Shipping window" v="14d" />
@@ -237,11 +243,19 @@ function Empty({ onMount }: { onMount: () => void }) {
   );
 }
 
-function FooterFact({ k, v }: { k: string; v: string }) {
+function FooterFact({ k, v, href }: { k: string; v: string; href?: string }) {
   return (
     <div className="footer-fact">
       <dt className="label">{k}</dt>
-      <dd className="meta">{v}</dd>
+      <dd className="meta">
+        {href ? (
+          <a className="footer-link" href={href} target="_blank" rel="noreferrer">
+            {v}
+          </a>
+        ) : (
+          v
+        )}
+      </dd>
     </div>
   );
 }
