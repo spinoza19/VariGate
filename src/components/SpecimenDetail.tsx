@@ -38,7 +38,8 @@ export function SpecimenDetail({
   const { address, client } = useWallet();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tracking, setTracking] = useState("");
+  const [trackNumber, setTrackNumber] = useState("");
+  const [trackUrl, setTrackUrl] = useState("");
   const [arrival, setArrival] = useState<PreparedImage | null>(null);
   const [stage, setStage] = useState<Stage | null>(null);
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
@@ -129,7 +130,10 @@ export function SpecimenDetail({
           <div className="row wrap" style={{ gap: 8 }}>
             <StatusChip escrow={escrow} />
             <span className="chip neutral">{fromWei(escrow.amount)} GEN</span>
-            {escrow.tracking ? <span className="chip neutral">{escrow.tracking}</span> : null}
+            {escrow.tracking_number ? (
+              <span className="chip neutral">{escrow.tracking_number}</span>
+            ) : null}
+            {escrow.trackable ? <span className="chip green">carrier verified</span> : null}
           </div>
         </header>
 
@@ -217,19 +221,33 @@ export function SpecimenDetail({
               <div className="action">
                 <span className="label">Hand over to a carrier</span>
                 <p className="action-body">
-                  Recording the tracking reference starts the buyer's 48-hour unboxing window on
-                  arrival.
+                  Dispatch starts no clock against the buyer. A carrier URL is optional, but
+                  without one only the buyer or the 30 day backstop can open the unboxing window.
                 </p>
                 <input
                   className="input"
-                  placeholder="tracking reference"
-                  value={tracking}
-                  onChange={(e) => setTracking(e.target.value)}
+                  placeholder="tracking number"
+                  value={trackNumber}
+                  onChange={(ev) => setTrackNumber(ev.target.value)}
                 />
+                <input
+                  className="input"
+                  placeholder="https://www.dhl.com/track?id=… (optional)"
+                  value={trackUrl}
+                  onChange={(ev) => setTrackUrl(ev.target.value)}
+                />
+                <span className="hint">
+                  The contract only accepts carrier domains it recognises, so a page you host
+                  yourself cannot be used to declare delivery.
+                </span>
                 <button
                   className="btn leaf block"
-                  disabled={tracking.trim().length < 4 || busy === "ship"}
-                  onClick={() => run("ship", () => markShipped(client!, escrow.id, tracking.trim()))}
+                  disabled={trackNumber.trim().length < 4 || busy === "ship"}
+                  onClick={() =>
+                    run("ship", () =>
+                      markShipped(client!, escrow.id, trackUrl.trim(), trackNumber.trim()),
+                    )
+                  }
                 >
                   {busy === "ship" ? <span className="spin" /> : null} Mark as shipped
                 </button>
@@ -262,9 +280,14 @@ export function SpecimenDetail({
             {escrow.awaiting_delivery && isSeller ? (
               <Action
                 title="Waiting on delivery"
-                body="Your dispatch did not start any clock against the buyer, and it cannot. If the tracking reference is a URL, the contract can read the carrier's page itself and start the window from the delivery date the carrier states."
+                body={
+                  escrow.trackable
+                    ? "Your dispatch did not start any clock against the buyer, and it cannot. The contract can read the carrier's page itself and will start the window only from a delivery the carrier states for this tracking number."
+                    : "Your dispatch did not start any clock against the buyer, and it cannot. No recognised carrier URL is on file, so only the buyer or the 30 day backstop can open the window."
+                }
                 cta="Check the carrier"
                 ghost
+                disabled={!escrow.trackable}
                 busy={busy === "carrier"}
                 onClick={() => run("carrier", () => checkDelivery(client!, escrow.id))}
               />

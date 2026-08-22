@@ -97,28 +97,79 @@ contract at the tracking URL and let the carrier start the clock. That check is
 a `gl.nondet.web.render` plus a vision-free prompt, so it is the same
 observe-then-compute split as the adjudication itself.
 
+### The second hole: whose page is it?
+
+The first version of that carrier check accepted **any** `https://` URL. A
+review caught it, and it was the same vulnerability wearing a different hat: a
+seller hosts `https://tracking.their-own-domain/parcel`, has it say
+"delivered", calls `check_delivery` the day they post the box, and claims on
+day three.
+
+Delivery can now only be read from a host on `CARRIER_DOMAINS`, a hardcoded
+allowlist of twenty real carriers, and the page must show the shipment's own
+tracking number. `mark_shipped` takes the URL and the number separately and
+rejects a non-carrier URL at dispatch rather than storing it.
+
+The host parsing is where this kind of fix usually breaks, so it is a pure
+function with its own attack suite. Every one of these resolves to the
+attacker's host and is rejected:
+
+```
+https://dhl.com@seller.example/x        userinfo
+https://dhl.com.seller.example/x        suffix
+https://seller.example/?u=dhl.com       query
+https://seller.example/#dhl.com         fragment
+https://seller.example\@dhl.com/x       backslash, which browsers read as "/"
+http://www.dhl.com/track                not https
+```
+
+The backslash case was a genuine bug found by writing that suite: the original
+parser stopped the authority at `/`, `?` and `#` but not `\`, so it read the
+host as `dhl.com` where a real fetcher reads `seller.example`.
+
 Filing an unboxing also records delivery implicitly, so a buyer who goes
 straight from the doorstep to the camera never sees the extra step.
 
 ### Proving it
 
 ```bash
-npm test          # 43 lifecycle assertions on the timing rule, plus 36 on payouts
-npm run proof     # replays the attack against the live contract
+npm test          # 109 offline assertions: payouts, timing rule, carrier URL parsing
+npm run proof     # replays both attacks against the live contract
 ```
 
-`npm run proof` lists, funds, ships, then tries `claim_no_show` as the seller
-before delivery and again during the buyer's window. Both are refused, the
-buyer files, the contract adjudicates. Output from the deployed contract:
+`npm run proof` runs both attacks through the real contract methods against a
+live deployment. Nothing is mocked, and every assertion is read back off chain
+afterwards, because a GenVM `UserError` still finalises: state is the proof, not
+the receipt. Output from the deployed contract:
 
 ```
-escrow #0 status 2 (SHIPPED), awaiting_delivery true
-   dispatch did not start a clock: deadline is 32d away
-attack refused. escrow still status 2, nothing paid out
-status 3 (DELIVERED), source "buyer"
-   window now open for 48h from delivery
-refused again. status 3, buyer's 48h intact
-verdict tier 4, seller 75%, score 73
+Attack B1: ship with a tracking page the seller controls
+  refused: a page on the seller's own host
+  refused: carrier smuggled in as userinfo
+  refused: carrier smuggled in as a suffix
+  refused: carrier smuggled into the query
+  refused: backslash before the userinfo
+  refused: plain http on a real carrier
+
+Setup: seller ships with a genuine carrier reference
+  status SHIPPED, trackable true
+  no delivery recorded by dispatch
+     deadline sits 32 days out, not 2
+
+Attack A: close the escrow before the parcel has been delivered
+  refused, escrow untouched
+
+Attack B2: make the carrier check declare an early delivery
+  no delivery date was set
+  claim still refused
+
+Nothing moved
+  all 1.0000 GEN still held by the contract
+
+The buyer's window is theirs alone
+  delivery recorded by the buyer
+  seller refused again while the window runs
+  adjudicated: tier 5, seller 100%, score 100
 ```
 
 Day 30 arithmetic is covered offline instead, in `scripts/test_lifecycle.py`. No
@@ -183,7 +234,7 @@ npm run dev
 
 | | |
 |---|---|
-| `npm test` | 79 offline assertions: 36 on the payout arithmetic, 43 on lifecycle and timeouts |
+| `npm test` | 109 offline assertions: 36 on the payout arithmetic, 73 on lifecycle, timeouts and carrier URL parsing |
 | `npm run proof` | replays the reviewed timeout attack against the live contract |
 | `npm run e2e` | full lifecycle against Studio with balance accounting at each step |
 | `npm run e2e -- rotten` | one scenario only (`honest`, `oversold`, `rotten`) |
@@ -249,9 +300,9 @@ anything. Clearly secondary in the UI, and it never asks anyone to paste a priva
 |---|---|---|
 | `list_specimen(species, claim, amount, before_img)` | seller | mounts a sheet, returns its id |
 | `fund(id)` *payable* | buyer | locks the exact asking price |
-| `mark_shipped(id, tracking)` | seller | hands over to a carrier. Starts no clock against the buyer |
+| `mark_shipped(id, url, number)` | seller | hands over to a carrier. Starts no clock, and rejects a URL that is not on the carrier allowlist |
 | `confirm_delivery(id)` | buyer | records delivery, opening the 48-hour window |
-| `check_delivery(id)` | anyone | reads the carrier's page and records the delivery date it states |
+| `check_delivery(id)` | anyone | reads the allowlisted carrier's page and records the delivery date it states for this tracking number |
 | `submit_arrival(id, after_img)` | buyer | **runs the adjudication and records the verdict** |
 | `settle(id)` | anyone | pays out strictly per the recorded verdict |
 | `claim_no_show(id)` | seller | only once the buyer has had a full 48h post-delivery, or 32 days have passed with no delivery on record |
@@ -308,6 +359,11 @@ is a real vision call fanned across the validator set.
   contract refuses to parse. The transaction finalises having changed nothing (the escrow is
   untouched, the photograph is not stored) and resending picks a fresh leader. The UI detects
   this and offers a retry; `npm run seed` retries once automatically.
+- **The allowlist is a constant, not governance.** Adding a carrier means a
+  redeploy. That is the right trade for a demo, and the wrong one for a real
+  deployment, which would want a timelocked registry.
+- **An allowlisted carrier with an open redirect would still be a hole.** The
+  contract sees the URL it was given, not the URL that answered.
 - **A leader can still be wrong about the photographs.** The arithmetic is verifiable; the
   observations are not, beyond the internal-consistency check and whatever the vision-capable
   validators catch. GenLayer's appeal path is the backstop and is the honest answer here.

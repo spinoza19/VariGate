@@ -150,7 +150,7 @@ for (const s of SHEETS) {
       sellerC.writeContract({
         address,
         functionName: "mark_shipped",
-        args: [id, `NL-PARCEL-${100000 + id}`],
+        args: [id, `https://www.dhl.com/track?id=VG-${100000 + id}`, `VG-${100000 + id}`],
         value: 0n,
       }),
     );

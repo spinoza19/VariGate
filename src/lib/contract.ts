@@ -135,8 +135,13 @@ export const listSpecimen = (
 export const fundEscrow = (client: Client, id: number, amountWei: bigint, onProgress?: TxProgress) =>
   send(client, "fund", [id], amountWei, onProgress);
 
-export const markShipped = (client: Client, id: number, tracking: string, onProgress?: TxProgress) =>
-  send(client, "mark_shipped", [id, tracking], 0n, onProgress);
+export const markShipped = (
+  client: Client,
+  id: number,
+  trackingUrl: string,
+  trackingNumber: string,
+  onProgress?: TxProgress,
+) => send(client, "mark_shipped", [id, trackingUrl, trackingNumber], 0n, onProgress);
 
 export const confirmDelivery = (client: Client, id: number, onProgress?: TxProgress) =>
   send(client, "confirm_delivery", [id], 0n, onProgress);

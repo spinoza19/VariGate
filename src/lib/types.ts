@@ -82,7 +82,10 @@ export interface Escrow {
   seconds_left: number;
   /** True while nobody has established delivery, so no clock is running yet. */
   awaiting_delivery: boolean;
-  tracking: string;
+  tracking_url: string;
+  tracking_number: string;
+  /** True when the recorded URL is on the contract's carrier allowlist. */
+  trackable: boolean;
   verdict: string;
   has_before: boolean;
   has_after: boolean;
@@ -94,6 +97,7 @@ export interface Config {
   strict_vision: boolean;
   arrival_window_seconds: number;
   max_transit_seconds: number;
+  carrier_domains: string[];
   ship_window_seconds: number;
   max_image_bytes: number;
 }

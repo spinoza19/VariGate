@@ -28,6 +28,8 @@ from _contract_stub import load_contract
 C = load_contract()
 
 deadline = C["_arrival_deadline"]
+carrier_host = C["_carrier_host"]
+is_carrier = C["_is_carrier_url"]
 WINDOW = C["ARRIVAL_WINDOW_SECONDS"]
 MAX_TRANSIT = C["MAX_TRANSIT_SECONDS"]
 SHIP_WINDOW = C["SHIP_WINDOW_SECONDS"]
@@ -204,6 +206,59 @@ check(
     True,
 )
 check("statuses are distinct", len({LISTED, FUNDED, SHIPPED, DELIVERED, JUDGED}), 5)
+
+# --------------------------------------------------------------------------- #
+section("only a real carrier can start the clock")
+
+# A seller who can point check_delivery at a page they control has the original
+# vulnerability back: they host a lookalike that says "delivered", start the
+# buyer's 48 hours the day they posted the box, and claim on day three.
+GENUINE = [
+    "https://www.dhl.com/track?id=VG123",
+    "https://dhl.com/x",
+    "https://track.ups.com/y",
+    "https://tools.usps.com/go/TrackConfirmAction?tLabels=Z",
+    "https://DHL.COM/upper",
+    "https://www.dhl.com./trailing-root-dot",
+    "https://www.dhl.com:443/with-port",
+]
+for u in GENUINE:
+    check(f"accepts {u[:52]}", is_carrier(u), True)
+
+ATTACKS = {
+    "plain seller host": "https://seller.example/tracking",
+    "carrier as a suffix": "https://dhl.com.seller.example/track",
+    "carrier as userinfo": "https://dhl.com@seller.example/track",
+    "carrier in userinfo with path": "https://www.dhl.com@seller.example/track?id=1",
+    "carrier in the query": "https://seller.example/track?ref=https://dhl.com",
+    "carrier in the fragment": "https://seller.example/track#dhl.com",
+    "carrier in the path": "https://seller.example/dhl.com/track",
+    "lookalike hyphen": "https://dhl-com.example/track",
+    "lookalike dash prefix": "https://my-dhl.com.co/track",
+    "plain http": "http://www.dhl.com/track",
+    "no scheme": "www.dhl.com/track",
+    "raw IP": "https://203.0.113.9/track",
+    "IPv6 literal": "https://[2001:db8::1]/track",
+    "empty": "",
+    "whitespace": "   ",
+    "scheme only": "https://",
+    "backslash trick": "https://seller.example\@dhl.com/",
+}
+for name, u in ATTACKS.items():
+    check(f"rejects {name}", is_carrier(u), False)
+
+check("userinfo trick resolves to the attacker's host",
+      carrier_host("https://dhl.com@seller.example/x"), "seller.example")
+check("suffix trick resolves to the attacker's host",
+      carrier_host("https://dhl.com.seller.example/x"), "dhl.com.seller.example")
+check("query is not part of the host",
+      carrier_host("https://seller.example/?u=dhl.com"), "seller.example")
+check("case and trailing dot are normalised",
+      carrier_host("https://WWW.DHL.COM./x"), "www.dhl.com")
+check("every allowlisted domain accepts itself",
+      all(is_carrier("https://" + d + "/t") for d in C["CARRIER_DOMAINS"]), True)
+check("every allowlisted domain rejects itself as a suffix",
+      any(is_carrier("https://" + d + ".seller.example/t") for d in C["CARRIER_DOMAINS"]), False)
 
 # --------------------------------------------------------------------------- #
 section("the seller's own deadline is unchanged")

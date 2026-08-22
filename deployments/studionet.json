@@ -1,11 +1,11 @@
 {
   "network": "studionet",
   "chainId": 61999,
-  "address": "0xdbF34a94CF5B6eC6F918e60b77D50541d9C2a185",
+  "address": "0x5A33DA5e6c0F9D15e0a3c98C0c798f882f558C1E",
   "deployer": "0xF0071AFE9ca99eB21cDDAb933837e6E280BDCB12",
   "treasury": "0xF0071AFE9ca99eB21cDDAb933837e6E280BDCB12",
   "feeBps": 200,
   "strictVision": false,
-  "deployTx": "0x1c504f832c13d31f8c095e5879e42702710ede6750f89d8c4f65cb4f0b914eaa",
-  "deployedAt": "2026-08-21T15:30:53.407Z"
+  "deployTx": "0x8857773bfd8ac88825d84cc217346aac55100ee04eb788e4a37442a8b329d923",
+  "deployedAt": "2026-08-22T15:31:51.707Z"
 }
