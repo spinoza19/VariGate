@@ -65,6 +65,12 @@ ARRIVAL_WINDOW_SECONDS = 172_800  # 48h after delivery
 # buyer still gets the full ARRIVAL_WINDOW after it.
 MAX_TRANSIT_SECONDS = 2_592_000  # 30d from dispatch
 
+# How far apart two validators' readings of the carrier's delivery timestamp may
+# be before the check is rejected outright. Carriers restate times in local
+# zones and pages update between reads, so some slack is needed; anything wider
+# than this is a disagreement about the fact, not about the formatting.
+TIMESTAMP_TOLERANCE_SECONDS = 3_600  # 1h
+
 SHIP_WINDOW_SECONDS = 1_209_600  # 14d for the seller to hand over to a carrier
 
 # Only these hosts may be used to establish delivery automatically.
@@ -123,6 +129,7 @@ class Escrow:
     funded_at: u256
     shipped_at: u256
     delivered_at: u256  # 0 until delivery is established; never set by the seller
+    carrier_reported_at: u256  # what the carrier's page said; audit only, never counted from
 
     tracking_url: str  # carrier page, always on the CARRIER_DOMAINS allowlist
     tracking_number: str
@@ -184,6 +191,7 @@ class VariGate(gl.Contract):
                 funded_at=u256(0),
                 shipped_at=u256(0),
                 delivered_at=u256(0),
+                carrier_reported_at=u256(0),
                 tracking_url="",
                 tracking_number="",
                 delivery_source="",
@@ -306,10 +314,12 @@ class VariGate(gl.Contract):
         if not report["delivered"]:
             raise gl.vm.UserError("the carrier does not show this parcel as delivered")
 
-        stamp = int(report["delivered_at"])
-        if stamp <= 0:
-            stamp = now
-        e.delivered_at = u256(max(shipped_at, min(now, stamp)))
+        # The carrier's own timestamp is recorded but never counted from. See
+        # _recorded_delivery: a leader that backdates it to the dispatch date
+        # would collapse the deadline to shipped_at + 48h, which is the exact
+        # vulnerability this contract already had once.
+        e.delivered_at = u256(_recorded_delivery(int(report["delivered_at"]), shipped_at, now))
+        e.carrier_reported_at = u256(max(0, int(report["delivered_at"])))
         e.delivery_source = "carrier"
         e.status = STATUS_DELIVERED
 
@@ -557,6 +567,7 @@ class VariGate(gl.Contract):
                 "strict_vision": bool(self.strict_vision),
                 "arrival_window_seconds": ARRIVAL_WINDOW_SECONDS,
                 "max_transit_seconds": MAX_TRANSIT_SECONDS,
+                "timestamp_tolerance_seconds": TIMESTAMP_TOLERANCE_SECONDS,
                 "carrier_domains": CARRIER_DOMAINS,
                 "ship_window_seconds": SHIP_WINDOW_SECONDS,
                 "max_image_bytes": MAX_IMAGE_BYTES,
@@ -604,6 +615,7 @@ class VariGate(gl.Contract):
             "shipped_at": shipped_at,
             "delivered_at": delivered_at,
             "delivery_source": str(e.delivery_source),
+            "carrier_reported_at": int(e.carrier_reported_at),
             "arrival_deadline": deadline,
             "seconds_left": max(0, deadline - now) if deadline else 0,
             # True while the deadline is only the transit backstop, i.e. nobody
@@ -701,6 +713,55 @@ def _is_carrier_url(url: str) -> bool:
     return False
 
 
+def _recorded_delivery(reported_at: int, shipped_at: int, now: int) -> int:
+    """The delivery moment the deadline will actually count from.
+
+    Never the timestamp the leader parsed off the carrier's page. A leader that
+    backdates that value to the dispatch date recreates the original
+    vulnerability exactly: the deadline collapses to shipped_at + 48h and the
+    seller claims on day three. Clamping the reported value into
+    [shipped_at, now] does not help, because shipped_at is inside that range.
+
+    The contract cannot verify *when* a parcel was delivered. It can only
+    verify that the carrier *now* says it was. So it counts from the one clock
+    it can trust: the transaction timestamp, which is byte-identical on every
+    validator and can never be earlier than the real delivery. The buyer's
+    window therefore comes out at least as long as promised, never shorter.
+
+    `reported_at` is still recorded, as an audit trail. It just does not touch
+    the money.
+    """
+    del reported_at  # deliberately unused; see above
+    return max(shipped_at, now)
+
+
+def _well_formed_tracking(o) -> bool:
+    """Shape check applied to the leader's report and to every validator's own."""
+    if not isinstance(o, dict):
+        return False
+    if not isinstance(o.get("delivered"), bool):
+        return False
+    if not isinstance(o.get("number_matches"), bool):
+        return False
+    if not isinstance(o.get("delivered_at"), int) or o["delivered_at"] < 0:
+        return False
+    # A page cannot say "delivered" for a consignment it is not tracking.
+    if o["delivered"] and not o["number_matches"]:
+        return False
+    return True
+
+
+def _timestamps_agree(a: int, b: int) -> bool:
+    """Two independent readings of the same delivery time.
+
+    Fails closed: a missing or unparseable timestamp on either side is a
+    disagreement, not a shrug.
+    """
+    if a <= 0 or b <= 0:
+        return a == b
+    return abs(a - b) <= TIMESTAMP_TOLERANCE_SECONDS
+
+
 def _arrival_deadline(shipped_at: int, delivered_at: int) -> int:
     """The single moment after which the buyer can no longer file evidence.
 
@@ -771,24 +832,29 @@ def _read_tracking(url: str, number: str) -> dict:
         if not isinstance(leader_result, gl.vm.Return):
             return False
         d = leader_result.calldata
-        if not isinstance(d, dict) or not isinstance(d.get("delivered"), bool):
+        if not _well_formed_tracking(d):
             return False
-        if not isinstance(d.get("number_matches"), bool):
-            return False
-        if not isinstance(d.get("delivered_at"), int) or d["delivered_at"] < 0:
-            return False
+        # Fail closed. A validator that cannot reach the carrier votes no; it
+        # does not defer to the leader. The consequence of rejecting is that no
+        # delivery gets recorded, which leaves the buyer's protection intact
+        # and the transit backstop running. The consequence of deferring is
+        # that a leader who can make the carrier unreachable for everyone else
+        # gets to state the delivery time unopposed.
         try:
             mine = leader_fn()
         except Exception:
-            # A validator that cannot reach the carrier defers rather than
-            # blocking consensus; the clamp in check_delivery still applies.
-            return True
-        # Agreement on the two facts that move money is required. The exact
-        # minute is not: carriers restate timestamps in local time and the
-        # clamp keeps any disagreement inside a range that cannot hurt anyone.
+            return False
+        if not _well_formed_tracking(mine):
+            return False
+
+        # All three reported facts must agree, the timestamp included. Leaving
+        # it out was the hole here: two validators could agree that a parcel
+        # was delivered while the leader backdated *when*, and the deadline is
+        # computed from when.
         return (
             mine["delivered"] == d["delivered"]
             and mine["number_matches"] == d["number_matches"]
+            and _timestamps_agree(mine["delivered_at"], d["delivered_at"])
         )
 
     return gl.vm.run_nondet_unsafe(leader_fn, validator_fn)

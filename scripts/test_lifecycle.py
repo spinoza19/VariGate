@@ -29,6 +29,10 @@ C = load_contract()
 
 deadline = C["_arrival_deadline"]
 carrier_host = C["_carrier_host"]
+recorded_delivery = C["_recorded_delivery"]
+timestamps_agree = C["_timestamps_agree"]
+well_formed_tracking = C["_well_formed_tracking"]
+TOLERANCE = C["TIMESTAMP_TOLERANCE_SECONDS"]
 is_carrier = C["_is_carrier_url"]
 WINDOW = C["ARRIVAL_WINDOW_SECONDS"]
 MAX_TRANSIT = C["MAX_TRANSIT_SECONDS"]
@@ -206,6 +210,73 @@ check(
     True,
 )
 check("statuses are distinct", len({LISTED, FUNDED, SHIPPED, DELIVERED, JUDGED}), 5)
+
+# --------------------------------------------------------------------------- #
+section("a stale leader timestamp cannot enable an early no-show payout")
+
+# The leader parses a delivery time off the carrier's page. If that value fed
+# the deadline, a leader could backdate it to the dispatch date and collapse
+# the window to shipped_at + 48h: the original vulnerability, restored.
+# _recorded_delivery must therefore ignore it entirely.
+NOW = SHIP + 9 * DAY  # the carrier check runs on day 9
+
+HOSTILE = {
+    "backdated to dispatch": SHIP,
+    "backdated before dispatch": SHIP - 400 * DAY,
+    "the unix epoch": 0,
+    "one second after dispatch": SHIP + 1,
+    "yesterday": NOW - DAY,
+    "an hour ago": NOW - HOUR,
+    "exactly now": NOW,
+    "the future": NOW + 900 * DAY,
+    "absurdly large": 2**53,
+}
+for name, reported in HOSTILE.items():
+    rec = recorded_delivery(reported, SHIP, NOW)
+    dl = deadline(SHIP, rec)
+    check(f"leader reports {name}: deadline still NOW + 48h", dl, NOW + WINDOW)
+    check(f"leader reports {name}: seller still blocked at NOW + 47h",
+          seller_may_claim(NOW + 47 * HOUR, SHIP, rec), False)
+
+check(
+    "no reported value can move the recorded delivery at all",
+    len({recorded_delivery(r, SHIP, NOW) for r in HOSTILE.values()}),
+    1,
+)
+check(
+    "and the recorded value is the chain's own clock",
+    recorded_delivery(SHIP, SHIP, NOW),
+    NOW,
+)
+check(
+    "which is never before dispatch",
+    recorded_delivery(0, SHIP, SHIP - 5),
+    SHIP,
+)
+
+# The reviewer also asked for the agreement check itself to fail closed.
+section("timestamp agreement fails closed")
+
+check("identical timestamps agree", timestamps_agree(1_700_000_000, 1_700_000_000), True)
+check("a minute apart agrees", timestamps_agree(1_700_000_000, 1_700_000_060), True)
+check("the tolerance boundary agrees", timestamps_agree(1_700_000_000, 1_700_000_000 + TOLERANCE), True)
+check("one second past it does not", timestamps_agree(1_700_000_000, 1_700_000_001 + TOLERANCE), False)
+check("a day apart does not", timestamps_agree(1_700_000_000, 1_700_000_000 + DAY), False)
+check("a stale leader value does not", timestamps_agree(SHIP, NOW), False)
+check("missing on one side does not", timestamps_agree(0, 1_700_000_000), False)
+check("missing on the other side does not", timestamps_agree(1_700_000_000, 0), False)
+check("missing on both sides is agreement", timestamps_agree(0, 0), True)
+
+GOOD = {"delivered": True, "number_matches": True, "delivered_at": 1_700_000_000}
+check("a well formed report passes", well_formed_tracking(GOOD), True)
+check("delivered without a number match is incoherent",
+      well_formed_tracking({**GOOD, "number_matches": False}), False)
+check("a negative timestamp is rejected", well_formed_tracking({**GOOD, "delivered_at": -1}), False)
+check("a string timestamp is rejected", well_formed_tracking({**GOOD, "delivered_at": "x"}), False)
+check("a missing field is rejected", well_formed_tracking({"delivered": True}), False)
+check("junk is rejected", well_formed_tracking("delivered"), False)
+check("not-delivered with no number match is fine",
+      well_formed_tracking({"delivered": False, "number_matches": False, "delivered_at": 0}), True)
 
 # --------------------------------------------------------------------------- #
 section("only a real carrier can start the clock")

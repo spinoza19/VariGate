@@ -6,6 +6,8 @@
  *      the 48h window at dispatch.
  *   B. The seller supplies a tracking page they control and uses it to declare
  *      delivery, which starts the window early by another route.
+ *   C. The leader reports a backdated delivery timestamp, so the window is
+ *      counted from a moment before the parcel actually landed.
  *
  * Nothing here is mocked. Every step is a transaction, and every assertion is
  * read back off chain afterwards, because on GenVM a UserError still finalises:
@@ -170,12 +172,31 @@ assert((await balanceOf(buyer.address)) <= buyerBefore, "buyer received nothing"
 assert(BigInt(e.amount) === price, `all ${fmtGen(price)} GEN still held by the contract`);
 
 // --------------------------------------------------------------------------
+step("Attack C: a backdated delivery timestamp");
+log("   The recorded delivery time is the transaction's own clock, not a value");
+log("   any leader parsed off a page, so there is nothing to backdate.");
+const beforeConfirm = Math.floor(Date.now() / 1000);
+
+// --------------------------------------------------------------------------
 step("The buyer's window is theirs alone");
 h = await buyerC.writeContract({ address, functionName: "confirm_delivery", args: [id], value: 0n });
 await awaitTx(buyerC, h, "confirm_delivery");
 e = await read(id);
 assert(e.status === 3 && e.delivery_source === "buyer", "delivery recorded by the buyer");
 log(`     window open for ${Math.round(e.seconds_left / 3600)}h`);
+
+// The deadline must be exactly the recorded delivery plus the full window, and
+// the recorded delivery must be the chain's clock rather than anything earlier.
+assert(
+  e.arrival_deadline === e.delivered_at + 172800,
+  "deadline is exactly delivery + 48h",
+);
+assert(
+  e.delivered_at >= e.shipped_at && Math.abs(e.delivered_at - beforeConfirm) < 900,
+  "recorded delivery is the chain clock, not a backdated value",
+);
+assert(e.carrier_reported_at === 0, "no carrier timestamp was counted from");
+assert(e.seconds_left > 47 * 3600, "a full window remains, not a residue of one");
 
 err = await attempt(sellerC, "claim_no_show (window open)", "claim_no_show", [id]);
 e = await read(id);

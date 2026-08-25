@@ -89,7 +89,7 @@ established two ways:
 | | Who | How |
 |---|---|---|
 | `confirm_delivery` | buyer only | says the parcel landed |
-| `check_delivery` | anyone | the contract reads the carrier's tracking page and takes the delivery date from it, clamped to `[shipped_at, now]` |
+| `check_delivery` | anyone | the contract reads the carrier's tracking page, and records delivery only if that page shows this shipment as delivered |
 
 The second is what stops the fix from becoming a buyer-side griefing tool: a
 seller facing a silent buyer does not have to wait 32 days, they point the
@@ -127,15 +127,47 @@ The backslash case was a genuine bug found by writing that suite: the original
 parser stopped the authority at `/`, `?` and `#` but not `\`, so it read the
 host as `dhl.com` where a real fetcher reads `seller.example`.
 
+### The third hole: whose clock is it?
+
+Even with a real carrier page, the leader is the one who *reads* it. It parses a
+delivery timestamp out of the HTML, and the old code clamped that value into
+`[shipped_at, now]` and counted from it. But `shipped_at` is inside that range.
+A leader reporting the dispatch date collapsed the deadline back to
+`shipped_at + 48h`: the first vulnerability, reachable a third way. Validators
+compared `delivered` and `number_matches` and never compared the timestamp at
+all, and a validator that could not reach the carrier voted **yes**.
+
+Two changes:
+
+**The deadline counts from the chain's own clock.** The contract cannot verify
+*when* a parcel was delivered, only that the carrier *now* says it was. So
+`_recorded_delivery` ignores the parsed value and returns the transaction
+timestamp, which is byte-identical on every validator and can never be earlier
+than the real delivery. The buyer's window therefore comes out at least as long
+as promised, never shorter. The carrier's own timestamp is still stored, as
+`carrier_reported_at`, purely for the audit trail.
+
+**Agreement fails closed.** Validators now compare all three reported facts,
+timestamp included, within a one hour tolerance. A validator that cannot reach
+the carrier votes no rather than deferring to the leader. Rejecting means no
+delivery is recorded, which leaves the buyer's protection intact and the transit
+backstop running; deferring would let a leader who can make the carrier
+unreachable for everyone else state the delivery time unopposed.
+
 Filing an unboxing also records delivery implicitly, so a buyer who goes
 straight from the doorstep to the camera never sees the extra step.
 
 ### Proving it
 
 ```bash
-npm test          # 109 offline assertions: payouts, timing rule, carrier URL parsing
-npm run proof     # replays both attacks against the live contract
+npm test          # 146 offline assertions: payouts, timing, carrier URLs, timestamps
+npm run proof     # replays all three attacks against the live contract
 ```
+
+The stale-timestamp regression is exhaustive rather than illustrative: it runs
+every hostile value a leader could report, from the unix epoch to the dispatch
+second to a date centuries out, and asserts the recorded delivery does not move
+and the seller is still blocked 47 hours later.
 
 `npm run proof` runs both attacks through the real contract methods against a
 live deployment. Nothing is mocked, and every assertion is read back off chain
@@ -162,6 +194,12 @@ Attack A: close the escrow before the parcel has been delivered
 Attack B2: make the carrier check declare an early delivery
   no delivery date was set
   claim still refused
+
+Attack C: a backdated delivery timestamp
+  deadline is exactly delivery + 48h
+  recorded delivery is the chain clock, not a backdated value
+  no carrier timestamp was counted from
+  a full window remains, not a residue of one
 
 Nothing moved
   all 1.0000 GEN still held by the contract
@@ -234,7 +272,7 @@ npm run dev
 
 | | |
 |---|---|
-| `npm test` | 109 offline assertions: 36 on the payout arithmetic, 73 on lifecycle, timeouts and carrier URL parsing |
+| `npm test` | 146 offline assertions: 36 on the payout arithmetic, 110 on lifecycle, timeouts, carrier URLs and timestamp handling |
 | `npm run proof` | replays the reviewed timeout attack against the live contract |
 | `npm run e2e` | full lifecycle against Studio with balance accounting at each step |
 | `npm run e2e -- rotten` | one scenario only (`honest`, `oversold`, `rotten`) |
