@@ -37,6 +37,8 @@ export const TIER_TONE: Record<number, "green" | "amber" | "red" | "neutral"> = 
 };
 
 export interface Observations {
+  listing_token_read: string;
+  arrival_token_read: string;
   cultivar_match: boolean;
   cultivar_note: string;
   leaves_before: number;
@@ -82,6 +84,9 @@ export interface Escrow {
   seconds_left: number;
   /** True while nobody has established delivery, so no clock is running yet. */
   awaiting_delivery: boolean;
+  listing_token: string;
+  arrival_token: string;
+  delivery_verified: boolean;
   tracking_url: string;
   tracking_number: string;
   /** True when the recorded URL is on the contract's carrier allowlist. */
@@ -94,7 +99,8 @@ export interface Escrow {
 export interface Config {
   treasury: string;
   fee_bps: number;
-  strict_vision: boolean;
+  /** Always "fail_closed": a validator that cannot inspect the plates votes no. */
+  image_check: string;
   arrival_window_seconds: number;
   max_transit_seconds: number;
   carrier_domains: string[];

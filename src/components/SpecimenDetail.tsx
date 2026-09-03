@@ -171,6 +171,8 @@ export function SpecimenDetail({
                   : "not yet recorded"
               }
             />
+            <Fact k="Listing token" v={escrow.listing_token} />
+            <Fact k="Arrival token" v={escrow.arrival_token || "issued on dispatch"} />
             <Fact
               k="Unboxing window"
               v={
@@ -269,7 +271,7 @@ export function SpecimenDetail({
             {escrow.awaiting_delivery && isBuyer ? (
               <Action
                 title="Has it arrived?"
-                body="Recording delivery starts your 48 hour window to file the unboxing. Filing the unboxing does it for you, so this is only worth pressing if you want to open the box later."
+                body="Delivery has to be on record before an unboxing can be adjudicated, and recording it starts your 48 hour window."
                 cta="Confirm delivery"
                 ghost
                 busy={busy === "delivered"}
@@ -297,9 +299,14 @@ export function SpecimenDetail({
               <div className="action accent">
                 <span className="label">File the unboxing</span>
                 <p className="action-body">
-                  One photograph of the plant as it arrived. This is the transaction that runs the
-                  adjudication, and the money is decided by the time it confirms.
+                  One photograph of the plant as it arrived, with the arrival token written on a
+                  card in the shot. This is the transaction that runs the adjudication, and the
+                  money is decided by the time it confirms.
                 </p>
+                <div className="detail-token">
+                  <span className="label">Show this in the photograph</span>
+                  <code>{escrow.arrival_token}</code>
+                </div>
                 <ArrivalPicker value={arrival} onChange={setArrival} onError={setError} />
                 <button className="btn accent block" disabled={!arrival} onClick={() => void adjudicate()}>
                   Submit for adjudication

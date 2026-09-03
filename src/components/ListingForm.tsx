@@ -3,6 +3,7 @@ import { useWallet } from "../wallet/WalletContext";
 import { listSpecimen } from "../lib/contract";
 import { prepareFromUrl, prepareImage, type PreparedImage } from "../lib/image";
 import { toWei } from "../lib/format";
+import { listingToken } from "../lib/tokens";
 import "./listing.css";
 
 const PRESETS = [
@@ -48,6 +49,17 @@ export function ListingForm({ onListed }: { onListed: () => Promise<void> | void
   const fileRef = useRef<HTMLInputElement>(null);
 
   const valid = species.trim().length > 2 && claim.trim().length >= 20 && !!photo && !!price;
+
+  // The contract derives this from exactly these fields, so it can be shown
+  // while the photograph is still being composed rather than after the fact.
+  let token = "";
+  try {
+    if (address && species.trim() && claim.trim() && price) {
+      token = listingToken(address, species.trim(), claim.trim(), toWei(price));
+    }
+  } catch {
+    /* an unparseable price simply means no token to show yet */
+  }
 
   const usePreset = async (p: (typeof PRESETS)[number]) => {
     setError(null);
@@ -199,6 +211,22 @@ export function ListingForm({ onListed }: { onListed: () => Promise<void> | void
             ) : null}
           </div>
         ) : null}
+
+        <div className="listing-token">
+          <span className="label">Write this on a card and put it in the shot</span>
+          {token ? (
+            <code className="listing-token-value">{token}</code>
+          ) : (
+            <p className="hint" style={{ marginTop: 6 }}>
+              Fill in the species, claim and price, and the token for this listing appears here.
+            </p>
+          )}
+          <p>
+            The contract reads the token off the photograph and refuses any plate that does not
+            carry it. That is what stops a stock image, or a shot borrowed from another listing,
+            from standing in as evidence.
+          </p>
+        </div>
 
         <div className="listing-note">
           <span className="label">One photograph, not a gallery</span>

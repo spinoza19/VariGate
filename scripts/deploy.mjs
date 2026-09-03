@@ -14,7 +14,6 @@ import {
 } from "./lib.mjs";
 
 const FEE_BPS = 200; // 2% platform fee
-const STRICT_VISION = false; // see contracts/varigate.py; Studio runs a mixed validator set
 
 const account = deployer();
 const client = clientFor(account);
@@ -41,7 +40,7 @@ ok(`schema valid (${code.length} bytes of Python)`);
 
 const hash = await client.deployContract({
   code,
-  args: [treasury, FEE_BPS, STRICT_VISION],
+  args: [treasury, FEE_BPS],
 });
 const receipt = await awaitTx(client, hash, "deploy");
 const address = receipt.data?.contract_address ?? receipt.recipient;
@@ -56,7 +55,6 @@ saveDeployment({
   deployer: account.address,
   treasury,
   feeBps: FEE_BPS,
-  strictVision: STRICT_VISION,
   deployTx: hash,
   deployedAt: new Date().toISOString(),
 });

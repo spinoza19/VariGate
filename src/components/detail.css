@@ -199,3 +199,21 @@
   border-radius: 999px;
   padding: 3px 10px;
 }
+
+.detail-token {
+  display: grid;
+  gap: 5px;
+  padding: 10px 13px;
+  border-radius: var(--r-sm);
+  background: var(--card);
+  border: 1.5px dashed var(--indigo);
+}
+
+.detail-token code {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--indigo);
+  user-select: all;
+}

@@ -24,6 +24,7 @@ from __future__ import annotations
 import sys
 
 from _contract_stub import load_contract
+import tokens as offchain
 
 C = load_contract()
 
@@ -32,6 +33,10 @@ carrier_host = C["_carrier_host"]
 recorded_delivery = C["_recorded_delivery"]
 timestamps_agree = C["_timestamps_agree"]
 well_formed_tracking = C["_well_formed_tracking"]
+listing_token = C["listing_token"]
+arrival_token = C["arrival_token"]
+token_matches = C["_token_matches"]
+normalise_token = C["_normalise_token"]
 TOLERANCE = C["TIMESTAMP_TOLERANCE_SECONDS"]
 is_carrier = C["_is_carrier_url"]
 WINDOW = C["ARRIVAL_WINDOW_SECONDS"]
@@ -195,14 +200,15 @@ ACCEPTS = {
     "mark_shipped": {FUNDED},
     "confirm_delivery": {SHIPPED},
     "check_delivery": {SHIPPED},
-    "submit_arrival": {SHIPPED, DELIVERED},
+    "submit_arrival": {DELIVERED},
     "claim_no_show": {SHIPPED, DELIVERED},
     "claim_no_ship": {FUNDED},
     "settle": {JUDGED},
 }
 
 check("delivery can only be established while in transit", ACCEPTS["confirm_delivery"], {SHIPPED})
-check("a buyer can file before or after delivery is recorded", ACCEPTS["submit_arrival"], {SHIPPED, DELIVERED})
+check("adjudication requires a recorded delivery first", ACCEPTS["submit_arrival"], {DELIVERED})
+check("a parcel still in transit cannot be adjudicated", SHIPPED in ACCEPTS["submit_arrival"], False)
 check("settlement needs a verdict first", ACCEPTS["settle"], {JUDGED})
 check(
     "no entry point moves money straight out of SHIPPED without the deadline",
@@ -277,6 +283,67 @@ check("a missing field is rejected", well_formed_tracking({"delivered": True}), 
 check("junk is rejected", well_formed_tracking("delivered"), False)
 check("not-delivered with no number match is fine",
       well_formed_tracking({"delivered": False, "number_matches": False, "delivered_at": 0}), True)
+
+# --------------------------------------------------------------------------- #
+section("photographs are bound to one shipment")
+
+SELLER = "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A"
+SPECIES = "Monstera deliciosa 'Albo Variegata'"
+CLAIM = "Four leaves, roughly 40% white sectorial variegation, no rot."
+PRICE = 2 * 10**18
+
+LT = listing_token(SELLER, SPECIES, CLAIM, PRICE)
+AT = arrival_token(LT, "VG-100000")
+
+check("a listing token has the expected shape", len(LT), 12)
+check("and its own prefix", LT[:3], "VG-")
+check("an arrival token has its own prefix", AT[:3], "VA-")
+check("the two are different", LT != AT, True)
+check("derivation is deterministic", listing_token(SELLER, SPECIES, CLAIM, PRICE), LT)
+
+# The photograph generator and the seed compute these off chain; if they ever
+# drift from the contract, an honest unboxing gets rejected. Pin them together.
+check(
+    "the off-chain helper matches the contract exactly",
+    offchain.listing_token(SELLER, SPECIES, CLAIM, PRICE),
+    LT,
+)
+check(
+    "and so does the arrival derivation",
+    offchain.arrival_token(LT, "VG-100000"),
+    AT,
+)
+
+# Every field that identifies the shipment must change the token, or a photo
+# from one listing could be replayed into another.
+check("a different seller yields a different token",
+      listing_token("0x0000000000000000000000000000000000000001", SPECIES, CLAIM, PRICE) != LT, True)
+check("a different species does too",
+      listing_token(SELLER, "Philodendron spiritus-sancti", CLAIM, PRICE) != LT, True)
+check("a different claim does too",
+      listing_token(SELLER, SPECIES, CLAIM + " Ships bare-root.", PRICE) != LT, True)
+check("a different price does too",
+      listing_token(SELLER, SPECIES, CLAIM, PRICE + 1) != LT, True)
+check("a different tracking number changes the arrival token",
+      arrival_token(LT, "VG-100001") != AT, True)
+check("and so does a different listing token",
+      arrival_token("VG-AAAA-BBBB", "VG-100000") != AT, True)
+
+check("tokens never contain the ambiguous glyphs",
+      any(c in LT + AT for c in "IO01"), False)
+
+section("token matching")
+
+check("an exact read matches", token_matches(LT, LT), True)
+check("lowercase still matches", token_matches(LT, LT.lower()), True)
+check("spacing and punctuation are ignored", token_matches(LT, LT.replace("-", " ")), True)
+check("a surrounding sentence does not match", token_matches(LT, f"the card reads {LT}"), False)
+check("an empty read never matches", token_matches(LT, ""), False)
+check("whitespace never matches", token_matches(LT, "   "), False)
+check("another shipment's token does not match", token_matches(LT, AT), False)
+check("one character off does not match", token_matches(LT, LT[:-1] + ("Z" if LT[-1] != "Z" else "Y")), False)
+check("an empty expectation never matches anything", token_matches("", ""), False)
+check("normalisation strips separators", normalise_token("vg-al5p-3jtz"), "VGAL5P3JTZ")
 
 # --------------------------------------------------------------------------- #
 section("only a real carrier can start the clock")
