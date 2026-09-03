@@ -41,6 +41,7 @@ const SHEETS = [
       "rooted in sphagnum. Ships bare-root with a heat pack.",
     price: 2,
     before: "albo-before.jpg",
+    tracking: "VG-ALBO-41207",
     after: "albo-after.jpg",
     settle: true,
   },
@@ -51,6 +52,7 @@ const SHEETS = [
       "condition. Established root system, no damage anywhere.",
     price: 3.5,
     before: "thai-before.jpg",
+    tracking: "VG-THAI-58311",
     after: "thai-after.jpg",
     settle: true,
   },
@@ -61,6 +63,7 @@ const SHEETS = [
       "years, ships in perfect health.",
     price: 5,
     before: "spiritus-before.jpg",
+    tracking: "VG-SPIR-77042",
     after: "spiritus-after.jpg",
     // Left judged-but-unsettled so the archive shows a live "Settle" action.
     settle: false,
@@ -150,7 +153,7 @@ for (const s of SHEETS) {
       sellerC.writeContract({
         address,
         functionName: "mark_shipped",
-        args: [id, `https://www.dhl.com/track?id=VG-${100000 + id}`, `VG-${100000 + id}`],
+        args: [id, `https://www.dhl.com/track?id=${s.tracking}`, s.tracking],
         value: 0n,
       }),
     );

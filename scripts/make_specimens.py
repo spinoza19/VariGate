@@ -244,7 +244,7 @@ if __name__ == "__main__":
             "Four-leaf cutting, roughly 40% white sectorial variegation across the blades, no rot, "
             "rooted in sphagnum. Ships bare-root with a heat pack.",
             2,
-            0,
+            "VG-ALBO-41207",
         ),
         (
             "thai",
@@ -252,7 +252,7 @@ if __name__ == "__main__":
             "Five leaves, heavy variegation on every blade, over 55% cream tissue, immaculate "
             "condition. Established root system, no damage anywhere.",
             3.5,
-            1,
+            "VG-THAI-58311",
         ),
         (
             "spiritus",
@@ -260,15 +260,15 @@ if __name__ == "__main__":
             "Three healthy leaves, deep green, clean stem with no soft tissue. Grown on for two "
             "years, ships in perfect health.",
             5,
-            2,
+            "VG-SPIR-77042",
         ),
     ]
 
     tok = {}
-    for key, species, claim, price, escrow_id in SHEETS:
+    for key, species, claim, price, tracking in SHEETS:
         wei = int(round(price * 1e6)) * 10**12
         lt = listing_token(SEED_SELLER, species, claim, wei)
-        at = arrival_token(lt, f"VG-{100000 + escrow_id}")
+        at = arrival_token(lt, tracking)
         tok[key] = (lt, at)
         print(f"{key:10s} listing {lt}   arrival {at}")
     print()
